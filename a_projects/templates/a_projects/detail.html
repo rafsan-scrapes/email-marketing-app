@@ -50,9 +50,7 @@
     <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
         <h2 class="text-lg font-semibold mb-4">Project Actions</h2>
         <div class="flex flex-wrap gap-3">
-            <a href="{% url 'a_sequences:configure' project.pk %}" class="button button-gray">
-                Configure Sequence
-            </a>
+            {# Sequence configuration will be added in Phase 3 #}
             <form method="post" action="{% url 'a_projects:delete' project.pk %}" class="inline">
                 {% csrf_token %}
                 <button type="submit" class="button button-red" onclick="return confirm('Delete this project and all its data?')">
