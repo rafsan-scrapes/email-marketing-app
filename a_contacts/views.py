@@ -4,6 +4,8 @@ from io import TextIOWrapper
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -317,7 +319,7 @@ def prompt_override_htmx(request, project_pk, contact_pk, step_pk):
         prompt_obj.prompt_text = prompt_text
         prompt_obj.save()
         messages.success(request, 'Prompt updated.')
-        return redirect('a_contacts:dashboard', project_pk=project.pk, step=step.pk)
+        return HttpResponseRedirect(reverse('a_contacts:dashboard', args=[project.pk]) + f'?step={step.pk}')
     
     context = {
         'project': project,
@@ -463,7 +465,7 @@ def bulk_send_prompt_view(request, project_pk):
     if error_count > 0:
         messages.error(request, f'Failed to generate AI fields for {error_count} contact(s).')
     
-    return redirect('a_contacts:dashboard', project_pk=project.pk, step=step_pk)
+    return HttpResponseRedirect(reverse('a_contacts:dashboard', args=[project.pk]) + f'?step={step_pk}')
 
 
 @login_required
@@ -487,7 +489,7 @@ def bulk_generate_email_dm_view(request, project_pk):
     contact_ids = request.POST.getlist('contact_ids')
     if not contact_ids:
         messages.error(request, 'No contacts selected.')
-        return redirect('a_contacts:dashboard', project_pk=project.pk, step=step_pk)
+        return HttpResponseRedirect(reverse('a_contacts:dashboard', args=[project.pk]) + f'?step={step_pk}')
     
     contacts = Contact.objects.filter(pk__in=contact_ids, project=project)
     
@@ -537,7 +539,7 @@ def bulk_generate_email_dm_view(request, project_pk):
     if error_count > 0:
         messages.error(request, f'Failed to generate Email/DM for {error_count} contact(s).')
     
-    return redirect('a_contacts:dashboard', project_pk=project.pk, step=step_pk)
+    return HttpResponseRedirect(reverse('a_contacts:dashboard', args=[project.pk]) + f'?step={step_pk}')
 
 
 @login_required
