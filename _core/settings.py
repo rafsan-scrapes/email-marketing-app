@@ -151,7 +151,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = 'a_home:dashboard'
 
 AUTH_USER_MODEL = 'a_users.CustomUser'
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

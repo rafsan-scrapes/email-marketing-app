@@ -25,6 +25,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('', home_view, name="home"),
+    path('dashboard/', include('a_home.urls')),
+    path('projects/', include('a_projects.urls')),
+    path('sequences/', include('a_sequences.urls')),
+    path('contacts/', include('a_contacts.urls')),
+    path('generation/', include('a_generation.urls')),
     path('profile/', include('a_users.urls')),
     path('@<username>/', profile_view, name="profile"),
 ]
