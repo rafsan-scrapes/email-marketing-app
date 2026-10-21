@@ -1,0 +1,38 @@
+<div
+    id="delete-modal-container"
+    class="fixed inset-0 z-50 flex items-center justify-center"
+    hx-on:click="if(event.target===this) { this.remove(); }"
+>
+    <div class="absolute inset-0 bg-black/50"></div>
+
+    <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md z-10">
+        <h2 class="text-xl font-semibold mb-4">Delete Project</h2>
+
+        <p class="text-gray-600 mb-6">
+            Are you sure you want to delete <strong>"{{ project.name }}"</strong>?
+            This action cannot be undone.
+        </p>
+
+        <form
+            hx-delete="{% url 'a_projects:delete' project.pk %}"
+            hx-target="#projects-list"
+            hx-swap="outerHTML"
+            hx-confirm="Are you sure?"
+            class="flex gap-3 justify-end"
+        >
+            <button
+                type="button"
+                onclick="this.closest('#delete-modal-container').remove()"
+                class="button button-gray"
+            >
+                Cancel
+            </button>
+            <button
+                type="submit"
+                class="button button-red"
+            >
+                Delete
+            </button>
+        </form>
+    </div>
+</div>

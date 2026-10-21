@@ -1,0 +1,23 @@
+{% extends 'layouts/page.html' %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1>Projects</h1>
+    <button
+        hx-get="{% url 'a_projects:create_htmx' %}"
+        hx-target="#create-form-container"
+        hx-swap="innerHTML"
+        class="button"
+    >
+        Create Project
+    </button>
+</div>
+
+<div id="create-form-container"></div>
+
+<div id="projects-list" class="mt-6">
+    {% include 'a_projects/partials/project_list.html' with projects=projects %}
+</div>
+
+{% endblock %}

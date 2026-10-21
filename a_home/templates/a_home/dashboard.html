@@ -2,8 +2,22 @@
 
 {% block content %}
 
-<h1>Projects</h1>
+<div class="flex items-center justify-between mb-6">
+    <h1>Projects</h1>
+    <button
+        hx-get="{% url 'a_projects:create_htmx' %}"
+        hx-target="#create-form-container"
+        hx-swap="innerHTML"
+        class="button"
+    >
+        Create Project
+    </button>
+</div>
 
-<p class="text-gray-500">Your projects will appear here.</p>
+<div id="create-form-container"></div>
+
+<div id="projects-list" class="mt-6">
+    {% include 'a_projects/partials/project_list.html' with projects=projects %}
+</div>
 
 {% endblock %}

@@ -13,12 +13,13 @@ explicitly told to.
 
 ## Current Goal
 
-- Unit 1.1 — Project model & CRUD.
+- Unit 1.2 — Settings model & page.
 
 ## Completed
 
 - Unit 0.1 — scaffold the new apps.
 - Unit 0.2 — wire URLs and dashboard.
+- Unit 1.1 — Project model & CRUD.
 
 ## In Progress
 
@@ -26,7 +27,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 1.1 (see Phase & Unit Roadmap below)
+- Unit 1.2 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -124,7 +125,7 @@ is sized to be implemented in one focused session/prompt.
 
 ### Phase 1 — Projects & Settings
 
-- [ ] **1.1** `Project` model (`name`, `type` = `email`|`linkedin_dm`,
+- [x] **1.1** `Project` model (`name`, `type` = `email`|`linkedin_dm`,
       `key_column` nullable, `csv_columns` JSON list, `created_at`,
       owner FK to the user). Views: create, list, delete (with
       confirmation). All scoped to `request.user`.
@@ -284,3 +285,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 0.1 completed**: Set `PROJECT_TITLE` to "Email Marketing App" in `_core/settings.py`, ran migrations successfully, confirmed starter's signup/login/email-confirmation flow works (server starts cleanly, allauth URLs included). Created four empty Django apps (`a_projects`, `a_sequences`, `a_contacts`, `a_generation`) with default scaffolding and registered all four in `INSTALLED_APPS`.
 
 - **Unit 0.2 completed**: Created `urls.py` for all four new apps (`a_projects`, `a_sequences`, `a_contacts`, `a_generation`) and wired them into the root URLConf under `/projects/`, `/sequences/`, `/contacts/`, `/generation/`. Added `a_home/urls.py` with a `dashboard_view` protected by `@login_required`, created `a_home/templates/a_home/dashboard.html` extending `layouts/page.html` with a "Projects" heading. Updated `LOGIN_REDIRECT_URL` in settings to `'a_home:dashboard'`. Server starts cleanly.
+
+- **Unit 1.1 completed**: Created `Project` model in `a_projects/models.py` with fields: `name`, `type` (choices: email/linkedin_dm), `key_column` (nullable), `csv_columns` (JSON list), `created_at`, and `owner` FK to user. Built create/list/delete views using class-based views (ProjectListView, ProjectCreateView, ProjectDeleteView) with htmx partials for create form and delete confirmation. All views scoped to `request.user`. Created templates: list view with project cards showing type badge, name, creation date, and actions; htmx partials for create form, project row, and delete modal. Wired URLs in `a_projects/urls.py` and updated dashboard to show project list with htmx-powered create/delete. Migrations applied successfully, server runs cleanly.
