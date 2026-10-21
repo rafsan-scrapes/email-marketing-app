@@ -2,6 +2,8 @@
 
 {% block content %}
 
+{% load static %}
+
 <div class="max-w-5xl mx-auto">
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -191,5 +193,7 @@
         }
     });
 </script>
+
+<script src="{% static 'js/template-editor.js' %}"></script>
 
 {% endblock %}
