@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from a_projects.models import Project
 from a_sequences.models import SequenceStep, Template, TemplateCondition, AIPromptConfig
-from a_sequences.placeholders import extract_placeholders, classify_placeholders
+from a_sequences.placeholders import extract_placeholders, classify_placeholders, get_prompt_manual_inputs
 
 
 @login_required
@@ -299,6 +299,9 @@ def ai_prompt_configure_view(request, project_pk, step_pk, template_pk):
     classification = classify_placeholders(placeholders, csv_columns)
     expected_outputs = classification['ai']
 
+    # Get manual input fields from prompt text
+    manual_inputs = get_prompt_manual_inputs(ai_config.prompt_text, csv_columns)
+
     # Only show this view if there are AI-sourced placeholders
     if not expected_outputs:
         messages.info(request, 'This template has no AI-sourced placeholders to configure.')
@@ -314,11 +317,15 @@ def ai_prompt_configure_view(request, project_pk, step_pk, template_pk):
             messages.success(request, 'AI prompt saved.')
             return redirect('a_sequences:ai_prompt_configure', project_pk=project.pk, step_pk=step.pk, template_pk=template.pk)
 
+    # Re-compute manual inputs after potential save (or use current prompt_text)
+    manual_inputs = get_prompt_manual_inputs(ai_config.prompt_text, csv_columns)
+
     context = {
         'project': project,
         'step': step,
         'template': template,
         'ai_config': ai_config,
         'expected_outputs': expected_outputs,
+        'manual_inputs': manual_inputs,
     }
     return render(request, 'a_sequences/ai_prompt_configure.html', context)

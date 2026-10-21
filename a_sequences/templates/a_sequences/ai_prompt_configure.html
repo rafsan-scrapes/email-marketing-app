@@ -31,6 +31,26 @@
         </div>
     </div>
 
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-200 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Detected Manual Input Fields</h2>
+        <p class="text-gray-600 mb-4">
+            The following fields were detected in your prompt as <strong>manual inputs</strong> 
+            (not matched to any CSV column). These will be presented as text boxes 
+            during generation and are <strong>not saved</strong> anywhere.
+        </p>
+        {% if manual_inputs %}
+            <div class="flex flex-wrap gap-2">
+                {% for field in manual_inputs %}
+                    <span class="px-3 py-1.5 bg-amber-50 text-amber-700 text-sm font-medium rounded-full border border-amber-200">
+                        {{ field }}
+                    </span>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-500">No manual input fields detected in current prompt.</p>
+        {% endif %}
+    </div>
+
     <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
         <h2 class="text-lg font-semibold mb-4">AI Prompt Configuration</h2>
         <p class="text-gray-600 mb-4">

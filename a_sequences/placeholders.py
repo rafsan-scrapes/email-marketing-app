@@ -62,3 +62,32 @@ def get_placeholder_classification(text: str, csv_columns: List[str]) -> dict:
     """
     placeholders = extract_placeholders(text)
     return classify_placeholders(placeholders, csv_columns)
+
+
+def get_prompt_manual_inputs(prompt_text: str, csv_columns: List[str]) -> List[str]:
+    """
+    Extract manual input fields from an AI prompt.
+    
+    Any {{token}} in the prompt that is NOT a CSV column is a manual input.
+    Returns list of manual input field names (unique, in first-seen order).
+    """
+    if not prompt_text:
+        return []
+    
+    # Extract all placeholders from prompt
+    placeholders = extract_placeholders(prompt_text)
+    
+    # Normalize CSV columns for case-insensitive comparison
+    csv_columns_lower = {col.strip().lower(): col for col in csv_columns}
+    
+    # Manual inputs are placeholders that DON'T match CSV columns
+    manual_inputs = []
+    seen: Set[str] = set()
+    
+    for placeholder in placeholders:
+        if placeholder.strip().lower() not in csv_columns_lower:
+            if placeholder not in seen:
+                seen.add(placeholder)
+                manual_inputs.append(placeholder)
+    
+    return manual_inputs

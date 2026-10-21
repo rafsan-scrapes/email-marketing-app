@@ -9,11 +9,11 @@ explicitly told to.
 
 ## Current Phase
 
-- Phase 5 — AI Prompt Configuration
+- Phase 6 — Gemini Integration & AI Field Generation
 
 ## Current Goal
 
-- Unit 5.2 — Manual input detection & auto-formatting.
+- Unit 6.1 — Gemini API client wrapper.
 
 ## Completed
 
@@ -29,6 +29,7 @@ explicitly told to.
 - Unit 4.2 — Placeholder classification utility.
 - Unit 4.3 — Drag-and-drop rich-text template editor.
 - Unit 5.1 — AIPromptConfig model & AI configure view.
+- Unit 5.2 — Manual input detection & auto-formatting.
 
 ## In Progress
 
@@ -36,7 +37,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 5.2 (see Phase & Unit Roadmap below)
+- Unit 6.1 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -200,7 +201,7 @@ is sized to be implemented in one focused session/prompt.
       relevant when the template has at least one AI-sourced
       placeholder (per 4.2's classification); lists those expected
       output placeholder names and provides the `prompt_text` field.
-- [ ] **5.2** Apply the placeholder utility to `prompt_text` itself to
+- [x] **5.2** Apply the placeholder utility to `prompt_text` itself to
       detect manual-input tokens (any `{{token}}` in the prompt that
       isn't a CSV column); store/display that list for later use by
       Phase 6's generation form. Implement the auto-appended
@@ -310,3 +311,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 4.3 completed**: Replaced plain `<textarea>` inputs with `contentEditable` `<div>` fields in `a_sequences/partials/template_list.html` (subject for email projects, body for all). Added CSV column chips as draggable elements in `placeholder-chips` container. Created `static/js/template-editor.js` (vanilla JS, no framework/build step) handling: `dragstart` on chips, `dragover`/`drop` on contentEditable fields to insert `{{Column Name}}` at cursor position via `Range`/`Selection` API, and `input` event to sync content to hidden form fields (`template_<pk>_subject`, `template_<pk>_body`). Form submission serializes contentEditable text into same backend fields; Unit 4.2 classification continues to work on submitted text. Subject field omitted for `linkedin_dm` projects. Only the insertion interaction uses vanilla JS — rest of UI remains htmx/Django.
 
 - **Unit 5.1 completed**: Created `AIPromptConfig` model in `a_sequences/models.py` with `template` OneToOneField and `prompt_text` TextField. Added `get_expected_output_placeholders()` method to derive AI-sourced placeholders live from template's subject/body using the shared placeholder utility. Built `ai_prompt_configure_view` in `a_sequences/views.py` that: checks for AI-sourced placeholders (redirects with message if none), displays expected output placeholder names as badges, provides prompt_text textarea with guidance on CSV column and manual input syntax, saves prompt on POST. Added URL `/sequences/project/<pk>/step/<step_pk>/template/<template_pk>/ai/` in `a_sequences/urls.py`. Created `a_sequences/templates/a_sequences/ai_prompt_configure.html` with expected outputs display and prompt textarea. Added "Configure AI" link in `template_list.html` partial shown only when template has AI-sourced placeholders. Migration applied, server runs cleanly.
+
+- **Unit 5.2 completed**: Added `get_prompt_manual_inputs()` to `a_sequences/placeholders.py` to detect manual-input tokens in prompt text (tokens not matching CSV columns). Created `a_sequences/ai_formatting.py` with `build_gemini_prompt()` that appends auto-generated formatting instructions requiring XML-style tagged output for each expected placeholder. Updated `ai_prompt_configure_view` to display manual inputs as amber badges under "Detected Manual Input Fields" section. Updated `ai_prompt_configure.html` to show manual inputs. Tested both functions: manual input detection correctly identifies non-CSV tokens, and formatting function wraps outputs in `<placeholder>[value]</placeholder>` tags.
