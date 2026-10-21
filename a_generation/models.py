@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from a_contacts.models import Contact
-from a_sequences.models import Template
+from a_sequences.models import Template, SequenceStep
 
 
 class GeneratedAIField(models.Model):
@@ -36,3 +36,32 @@ class GeneratedAIField(models.Model):
 
     def __str__(self):
         return f"{self.contact} - {self.template} - {self.placeholder_name} ({self.status})"
+
+
+class GeneratedMessage(models.Model):
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        related_name='generated_messages'
+    )
+    sequence_step = models.ForeignKey(
+        SequenceStep,
+        on_delete=models.CASCADE,
+        related_name='generated_messages'
+    )
+    template_used = models.ForeignKey(
+        Template,
+        on_delete=models.CASCADE,
+        related_name='generated_messages'
+    )
+    subject = models.TextField(blank=True, default='')
+    body = models.TextField(blank=True, default='')
+    generated_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-generated_at']
+        unique_together = ['contact', 'sequence_step']
+
+    def __str__(self):
+        return f"{self.contact} - Step {self.sequence_step.order} - {self.template_used}"

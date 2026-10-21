@@ -13,7 +13,7 @@ explicitly told to.
 
 ## Current Goal
 
-- Unit 7.2 — GeneratedMessage model & "Generate Email/DM" view.
+- Unit 7.3 — Results/review view.
 
 ## Completed
 
@@ -33,6 +33,7 @@ explicitly told to.
 - Unit 6.1 — Gemini API client wrapper.
 - Unit 6.2 — GeneratedAIField model & "Generate AI Fields" view.
 - Unit 7.1 — Template-resolution function.
+- Unit 7.2 — GeneratedMessage model & "Generate Email/DM" view.
 
 ## In Progress
 
@@ -40,7 +41,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 7.2 (see Phase & Unit Roadmap below)
+- Unit 7.3 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -246,7 +247,7 @@ is sized to be implemented in one focused session/prompt.
       order and return the first full match, or the default template
       if none match. (Skip if already built in 6.2 — just confirm it
       is shared, not duplicated.)
-- [ ] **7.2** `GeneratedMessage` model (`contact` FK, `sequence_step`
+- [x] **7.2** `GeneratedMessage` model (`contact` FK, `sequence_step`
       FK, `template_used` FK, `subject` nullable, `body`,
       `generated_at`). "Generate Email/DM" view: resolve the
       template, substitute CSV placeholders directly and AI
@@ -322,3 +323,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 6.2 completed**: Created `GeneratedAIField` model in `a_generation/models.py` with contact FK, template FK, placeholder_name, value, status (success/error), error_message, generated_at. Created `a_generation/resolution.py` with shared template-resolution function `resolve_template_for_contact()` (evaluates condition templates in order, falls back to default), `parse_gemini_response()` for parsing XML-style tagged output, and helpers. Created `generate_ai_fields_view` in `a_generation/views.py` that: resolves template for contact/step, renders manual input fields from Unit 5.2, substitutes CSV/manual values into prompt, calls `build_gemini_prompt()` and `call_gemini()`, parses tagged response into per-placeholder `GeneratedAIField` rows (overwriting on retry), handles per-field retry via `retry_field` POST param. Added URL `/generation/project/<pk>/contact/<pk>/step/<pk>/ai-fields/`. Created template with manual input form, expected outputs display, existing fields table with per-field retry/regenerate buttons. Error isolation: Gemini failure for one contact/step saves error status on that row only, never blocks other contacts. Resolution function lives in `a_generation/resolution.py` for Phase 7 reuse.
 
 - **Unit 7.1 completed**: Confirmed template-resolution function `resolve_template_for_contact(contact, sequence_step)` already exists in `a_generation/resolution.py` and is imported by `a_generation/views.py` (Generate AI Fields view). Function evaluates condition templates in explicit priority order (ascending `order`), ANDs conditions within a template, returns first full match, falls back to default template (order=0). No duplication - single shared function in `a_generation/resolution.py` used by both Phase 6 and Phase 7.
+
+- **Unit 7.2 completed**: Created `GeneratedMessage` model in `a_generation/models.py` with contact FK, sequence_step FK, template_used FK, subject (nullable), body, generated_at. Created `substitute_template_placeholders()` in `a_generation/resolution.py` to substitute CSV-sourced placeholders from contact.data and AI-sourced placeholders from GeneratedAIField (status=success). Created `generate_email_dm_view` in `a_generation/views.py` that: resolves template, substitutes all placeholders, fails clearly if any AI placeholder missing saved value (points to Generate AI Fields), saves/overwrites GeneratedMessage, updates contact.current_step and contact.next_due_date as suggestion per due-date decision (non-blocking). Added URL `/generation/project/<pk>/contact/<pk>/step/<pk>/email-dm/`. Created template with preview, missing AI placeholder detection, and generate button. Added `is_csv` template filter in `a_contacts/templatetags/contacts_extras.py`. Migration applied, server runs cleanly.

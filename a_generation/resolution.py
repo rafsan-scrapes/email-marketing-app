@@ -183,3 +183,70 @@ def parse_gemini_response(raw_text, expected_outputs):
         raise ValueError(f"Missing tags in Gemini response: {missing}")
     
     return results
+
+
+def substitute_template_placeholders(template, contact, csv_columns):
+    """
+    Substitute all placeholders in a template's subject and body.
+    
+    CSV-sourced placeholders are substituted from contact.data.
+    AI-sourced placeholders are substituted from GeneratedAIField (status=success).
+    
+    Args:
+        template: Template instance
+        contact: Contact instance
+        csv_columns: List of CSV column names from the project
+        
+    Returns:
+        tuple: (subject, body) with all placeholders substituted
+        
+    Raises:
+        ValueError: If any AI-sourced placeholder has no successful saved value
+    """
+    from a_sequences.placeholders import extract_placeholders, classify_placeholders
+    from a_generation.models import GeneratedAIField
+    
+    combined_text = ''
+    if template.subject:
+        combined_text += template.subject + '\n'
+    combined_text += template.body
+    
+    placeholders = extract_placeholders(combined_text)
+    classification = classify_placeholders(placeholders, csv_columns)
+    
+    csv_sourced = classification['csv']
+    ai_sourced = classification['ai']
+    
+    subject = template.subject or ''
+    body = template.body or ''
+    
+    # Substitute CSV-sourced placeholders
+    for placeholder in csv_sourced:
+        value = ''
+        for key, val in contact.data.items():
+            if key.lower() == placeholder.lower():
+                value = str(val)
+                break
+        subject = subject.replace(f'{{{{{placeholder}}}}}', value)
+        body = body.replace(f'{{{{{placeholder}}}}}', value)
+    
+    # Substitute AI-sourced placeholders from GeneratedAIField
+    for placeholder in ai_sourced:
+        try:
+            ai_field = GeneratedAIField.objects.get(
+                contact=contact,
+                template=template,
+                placeholder_name=placeholder,
+                status=GeneratedAIField.STATUS_SUCCESS
+            )
+            value = ai_field.value
+        except GeneratedAIField.DoesNotExist:
+            raise ValueError(
+                f"AI-sourced placeholder '{{{{{placeholder}}}}}' has no saved value. "
+                f"Please run 'Generate AI Fields' for this contact and step first."
+            )
+        
+        subject = subject.replace(f'{{{{{placeholder}}}}}', value)
+        body = body.replace(f'{{{{{placeholder}}}}}', value)
+    
+    return subject, body

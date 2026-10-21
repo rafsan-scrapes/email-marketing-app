@@ -9,4 +9,5 @@ dependencies = [
     "django-cleanup>=9.0.0",
     "django-htmx>=1.27.0",
     "pillow>=12.1.1",
+    "requests>=2.34.2",
 ]

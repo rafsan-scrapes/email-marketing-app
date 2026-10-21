@@ -1,18 +1,20 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from a_contacts.models import Contact
 from a_projects.settings_utils import get_gemini_api_key
-from a_sequences.models import Template, AIPromptConfig
+from a_sequences.models import Template, AIPromptConfig, SequenceStep
 from a_sequences.placeholders import get_prompt_manual_inputs
 from a_sequences.ai_formatting import build_gemini_prompt
-from a_generation.models import GeneratedAIField
+from a_generation.models import GeneratedAIField, GeneratedMessage
 from a_generation.gemini_client import call_gemini
 from a_generation.resolution import (
     resolve_template_for_contact,
     get_expected_output_placeholders,
     parse_gemini_response,
+    substitute_template_placeholders,
 )
 
 
@@ -153,6 +155,97 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
         'csv_columns': contact.project.csv_columns,
     }
     return render(request, 'a_generation/generate_ai_fields.html', context)
+
+
+@login_required
+def generate_email_dm_view(request, project_pk, contact_pk, step_pk):
+    """
+    Generate Email/DM for a single contact at a specific sequence step.
+    
+    Resolves the template, substitutes all placeholders (CSV from contact.data,
+    AI from GeneratedAIField), saves/overwrites GeneratedMessage, and updates
+    contact's current_step and next_due_date.
+    """
+    contact = get_object_or_404(Contact, pk=contact_pk, project_id=project_pk)
+    sequence_step = get_object_or_404(contact.project.sequence_steps, pk=step_pk)
+    
+    # Resolve the appropriate template for this contact
+    template = resolve_template_for_contact(contact, sequence_step)
+    
+    csv_columns = contact.project.csv_columns
+    expected_outputs = get_expected_output_placeholders(template, csv_columns)
+    
+    if request.method == 'POST':
+        try:
+            subject, body = substitute_template_placeholders(template, contact, csv_columns)
+        except ValueError as e:
+            messages.error(request, str(e))
+            return redirect('a_generation:generate_email_dm', project_pk=project_pk, contact_pk=contact_pk, step_pk=step_pk)
+        
+        # Save/overwrite GeneratedMessage
+        generated_message, created = GeneratedMessage.objects.update_or_create(
+            contact=contact,
+            sequence_step=sequence_step,
+            defaults={
+                'template_used': template,
+                'subject': subject,
+                'body': body,
+            }
+        )
+        
+        # Update contact's current_step and next_due_date (suggestion only, per architecture)
+        next_step = SequenceStep.objects.filter(
+            project=contact.project,
+            order=sequence_step.order + 1
+        ).first()
+        
+        if next_step:
+            contact.current_step = next_step.order
+            from datetime import timedelta
+            contact.next_due_date = (timezone.now().date() + timedelta(days=next_step.default_due_offset_days))
+            contact.save(update_fields=['current_step', 'next_due_date'])
+        
+        messages.success(request, 'Email/DM generated successfully.')
+        return redirect('a_generation:generate_email_dm', project_pk=project_pk, contact_pk=contact_pk, step_pk=step_pk)
+    
+    # GET request - show preview
+    try:
+        subject, body = substitute_template_placeholders(template, contact, csv_columns)
+        missing_ai = False
+        missing_ai_placeholders = []
+    except ValueError as e:
+        subject = ''
+        body = ''
+        missing_ai = True
+        missing_ai_placeholders = [str(e)]
+    
+    csv_columns = contact.project.csv_columns
+    expected_outputs = get_expected_output_placeholders(template, csv_columns)
+    
+    # Check which AI placeholders are missing
+    ai_placeholders = []
+    for ph in expected_outputs:
+        try:
+            GeneratedAIField.objects.get(
+                contact=contact,
+                template=template,
+                placeholder_name=ph,
+                status=GeneratedAIField.STATUS_SUCCESS
+            )
+        except GeneratedAIField.DoesNotExist:
+            ai_placeholders.append(ph)
+    
+    context = {
+        'contact': contact,
+        'template': template,
+        'sequence_step': sequence_step,
+        'subject': subject,
+        'body': body,
+        'missing_ai': missing_ai or len(ai_placeholders) > 0,
+        'missing_ai_placeholders': ai_placeholders,
+        'expected_outputs': expected_outputs,
+    }
+    return render(request, 'a_generation/generate_email_dm.html', context)
 
 
 def _build_prompt_with_substitutions(prompt_text, contact, manual_values):
