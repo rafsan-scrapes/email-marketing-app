@@ -4,16 +4,23 @@ from io import TextIOWrapper
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.csrf import csrf_exempt
 
 from a_projects.models import Project
 from a_contacts.models import Contact
 
 
-def _parse_csv_headers(csv_file):
-    """Parse CSV file and return headers list."""
+def _parse_csv(csv_file):
+    """Parse CSV file and return (headers, rows) tuple."""
+    # Seek to beginning if possible
+    if hasattr(csv_file, 'seek'):
+        csv_file.seek(0)
+    
     wrapper = TextIOWrapper(csv_file.file, encoding='utf-8')
     reader = csv.DictReader(wrapper)
-    return reader.fieldnames or []
+    headers = reader.fieldnames or []
+    rows = list(reader)
+    return headers, rows
 
 
 def _get_suggested_key(project, headers):
@@ -42,12 +49,9 @@ def csv_upload_view(request, project_pk):
             messages.error(request, 'Please select a key column.')
             return redirect('a_contacts:upload', project_pk=project.pk)
 
-        # Parse CSV
+        # Parse CSV - get both headers and rows in one pass
         try:
-            headers = _parse_csv_headers(csv_file)
-            wrapper = TextIOWrapper(csv_file.file, encoding='utf-8')
-            reader = csv.DictReader(wrapper)
-            rows = list(reader)
+            headers, rows = _parse_csv(csv_file)
         except Exception as e:
             messages.error(request, f'Error parsing CSV: {e}')
             return redirect('a_contacts:upload', project_pk=project.pk)
@@ -92,6 +96,7 @@ def csv_upload_view(request, project_pk):
 
 
 @login_required
+@csrf_exempt
 def csv_headers_htmx(request, project_pk):
     """HTMX endpoint: parse uploaded CSV and return key column dropdown options."""
     project = get_object_or_404(Project, pk=project_pk, owner=request.user)
@@ -101,7 +106,7 @@ def csv_headers_htmx(request, project_pk):
         return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': [], 'suggested_key': None})
 
     try:
-        headers = _parse_csv_headers(csv_file)
+        headers, _ = _parse_csv(csv_file)
     except Exception:
         headers = []
 

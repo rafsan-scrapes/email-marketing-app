@@ -13,7 +13,7 @@
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <form method="post" enctype="multipart/form-data" class="space-y-6">
+        <form method="post" enctype="multipart/form-data" class="space-y-6" id="upload-form">
             {% csrf_token %}
 
             <div>
@@ -26,10 +26,7 @@
                     accept=".csv"
                     required
                     class="w-full rounded-lg py-3 px-4 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                    hx-post="{% url 'a_contacts:headers_htmx' project.pk %}"
-                    hx-target="#key-column-container"
-                    hx-swap="innerHTML"
-                    hx-include="[name='csv_file']"
+                    id="csv-file-input"
                 >
                 <p class="mt-1 text-sm text-gray-500">Select a CSV file with headers in the first row.</p>
             </div>
@@ -48,6 +45,34 @@
             </div>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('csv-file-input');
+            const container = document.getElementById('key-column-container');
+            
+            fileInput.addEventListener('change', function() {
+                if (!this.files.length) return;
+                
+                const formData = new FormData();
+                formData.append('csv_file', this.files[0]);
+                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                
+                fetch('{% url "a_contacts:headers_htmx" project.pk %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    container.innerHTML = html;
+                })
+                .catch(err => console.error('Error fetching headers:', err));
+            });
+        });
+    </script>
 </div>
 
 {% endblock %}
