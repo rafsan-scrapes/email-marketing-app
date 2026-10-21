@@ -1,0 +1,94 @@
+{% for template in templates %}
+    <div class="template-row {% if template.is_default %}default-template{% endif %} border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors" draggable="{% if not template.is_default %}true{% else %}false{% endif %}" data-template-id="{{ template.pk }}" data-csv-columns='{{ csv_columns|safe }}'>
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-4">
+                <div class="text-gray-400 cursor-grab px-2 {% if template.is_default %}invisible{% endif %}" title="Drag to reorder">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16M4 12h16"/>
+                    </svg>
+                </div>
+
+                <div>
+                    <span class="text-sm font-medium text-gray-700">
+                        {% if template.is_default %}
+                            Default Template (fallback)
+                        {% else %}
+                            Condition Template #{{ forloop.counter|add:"-1" }}
+                        {% endif %}
+                    </span>
+                    {% if not template.is_default %}
+                        <input type="hidden" name="template_{{ template.pk }}_order" value="{{ template.order }}">
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not template.is_default %}
+                <div class="flex items-center gap-2">
+                    <form method="post" class="inline" onclick="event.stopPropagation(); return confirm('Delete this condition template?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_template">
+                        <input type="hidden" name="template_id" value="{{ template.pk }}">
+                        <button type="submit" class="text-red-500 hover:text-red-700 p-1" title="Delete condition template">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="space-y-4">
+            {% if project.type == "email" %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                    <textarea
+                        name="template_{{ template.pk }}_subject"
+                        rows="2"
+                        class="w-full rounded-lg py-2 px-3 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
+                        placeholder="Email subject (use {{Column}} placeholders)">{{ template.subject }}</textarea>
+                </div>
+            {% endif %}
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Body</label>
+                <textarea
+                    name="template_{{ template.pk }}_body"
+                    rows="6"
+                    class="w-full rounded-lg py-2 px-3 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-mono"
+                    placeholder="Template body (use {{Column}} placeholders)">{{ template.body }}</textarea>
+            </div>
+
+            {% if not template.is_default %}
+                <div class="border-t border-gray-200 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-gray-700">Conditions (all must match - AND)</h4>
+                        <button
+                            type="button"
+                            class="text-xs text-indigo-600 hover:text-indigo-700 add-condition-btn"
+                            data-template-id="{{ template.pk }}"
+                        >
+                            + Add Condition
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 conditions-container" data-template-id="{{ template.pk }}">
+                        {% for condition in template.get_conditions_ordered %}
+                            {% include 'a_sequences/partials/condition_row.html' with condition=condition template=template forloop=forloop csv_columns=csv_columns %}
+                        {% empty %}
+                            <div class="text-sm text-gray-500 py-2">No conditions yet. Click "Add Condition" to add one.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="text-sm text-gray-500 italic">
+                    The default template has no conditions and is used as a fallback when no condition templates match.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% empty %}
+    <div class="text-center py-8 text-gray-500">
+        No templates yet.
+    </div>
+{% endfor %}

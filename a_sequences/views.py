@@ -4,7 +4,7 @@ from django.db import models, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from a_projects.models import Project
-from a_sequences.models import SequenceStep
+from a_sequences.models import SequenceStep, Template, TemplateCondition
 
 
 @login_required
@@ -22,11 +22,18 @@ def sequence_configure_view(request, project_pk):
             if num_steps > 0:
                 with transaction.atomic():
                     for i in range(num_steps):
-                        SequenceStep.objects.create(
+                        step = SequenceStep.objects.create(
                             project=project,
                             name=f'Step {i + 1}',
                             order=i,
                             default_due_offset_days=2,
+                        )
+                        # Create default template for each step
+                        Template.objects.create(
+                            sequence_step=step,
+                            order=0,
+                            subject='',
+                            body='',
                         )
                 messages.success(request, f'Created {num_steps} sequence steps.')
                 return redirect('a_sequences:configure', project_pk=project.pk)
@@ -36,11 +43,18 @@ def sequence_configure_view(request, project_pk):
         elif action == 'add_step':
             # Add a single step at the end
             max_order = steps.aggregate(models.Max('order'))['order__max'] or -1
-            SequenceStep.objects.create(
+            step = SequenceStep.objects.create(
                 project=project,
                 name=f'Step {max_order + 2}',
                 order=max_order + 1,
                 default_due_offset_days=2,
+            )
+            # Create default template for the new step
+            Template.objects.create(
+                sequence_step=step,
+                order=0,
+                subject='',
+                body='',
             )
             messages.success(request, 'Step added.')
             return redirect('a_sequences:configure', project_pk=project.pk)
@@ -107,3 +121,145 @@ def sequence_configure_view(request, project_pk):
         'steps': steps,
     }
     return render(request, 'a_sequences/configure.html', context)
+
+
+@login_required
+def template_configure_view(request, project_pk, step_pk):
+    """Template configuration view for a sequence step."""
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+    step = get_object_or_404(SequenceStep, pk=step_pk, project=project)
+    templates = Template.objects.filter(sequence_step=step).order_by('order')
+    csv_columns = project.csv_columns
+
+    # Ensure default template exists
+    default_template = step.get_default_template()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_condition_template':
+            # Add a new condition template (order after the default template)
+            max_order = templates.aggregate(models.Max('order'))['order__max'] or 0
+            new_template = Template.objects.create(
+                sequence_step=step,
+                order=max_order + 1,
+                subject='',
+                body='',
+            )
+            messages.success(request, 'Condition template added.')
+            return redirect('a_sequences:template_configure', project_pk=project.pk, step_pk=step.pk)
+
+        elif action == 'delete_template':
+            template_id = request.POST.get('template_id')
+            try:
+                template = Template.objects.get(pk=template_id, sequence_step=step)
+                if template.is_default:
+                    messages.error(request, 'Cannot delete the default template.')
+                else:
+                    template.delete()
+                    # Reorder remaining templates
+                    remaining = Template.objects.filter(sequence_step=step).order_by('order')
+                    for idx, t in enumerate(remaining):
+                        t.order = idx
+                        t.save()
+                    messages.success(request, 'Condition template deleted.')
+            except Template.DoesNotExist:
+                messages.error(request, 'Template not found.')
+            return redirect('a_sequences:template_configure', project_pk=project.pk, step_pk=step.pk)
+
+        elif action == 'update_templates':
+            # Update templates (subject, body, order) and their conditions
+            with transaction.atomic():
+                # Update templates
+                template_data = {}
+                condition_data = {}
+
+                for key, value in request.POST.items():
+                    if key.startswith('template_'):
+                        parts = key.split('_')
+                        if len(parts) >= 3:
+                            template_id = int(parts[1])
+                            field = '_'.join(parts[2:])
+                            if template_id not in template_data:
+                                template_data[template_id] = {}
+                            template_data[template_id][field] = value
+                    elif key.startswith('condition_'):
+                        parts = key.split('_')
+                        if len(parts) >= 4:
+                            template_id = int(parts[1])
+                            condition_idx = int(parts[2])
+                            field = '_'.join(parts[3:])
+                            if template_id not in condition_data:
+                                condition_data[template_id] = {}
+                            if condition_idx not in condition_data[template_id]:
+                                condition_data[template_id][condition_idx] = {}
+                            condition_data[template_id][condition_idx][field] = value
+
+                # Process template updates
+                for template_id, data in template_data.items():
+                    try:
+                        template = Template.objects.get(pk=template_id, sequence_step=step)
+                        # Don't allow reordering of default template
+                        if template.is_default and 'order' in data:
+                            continue
+                        if 'subject' in data:
+                            template.subject = data['subject']
+                        if 'body' in data:
+                            template.body = data['body']
+                        if 'order' in data:
+                            template.order = int(data['order'])
+                        template.save()
+                    except (Template.DoesNotExist, ValueError):
+                        pass
+
+                # Process condition updates
+                for template_id, conditions in condition_data.items():
+                    try:
+                        template = Template.objects.get(pk=template_id, sequence_step=step)
+                        # Skip condition updates for default template
+                        if template.is_default:
+                            continue
+
+                        # Delete existing conditions and recreate
+                        template.conditions.all().delete()
+                        for condition_idx, cond_data in sorted(conditions.items()):
+                            if not cond_data.get('column_name'):
+                                continue
+                            TemplateCondition.objects.create(
+                                template=template,
+                                order=condition_idx,
+                                column_name=cond_data['column_name'],
+                                operator=cond_data['operator'],
+                                value=cond_data.get('value', ''),
+                            )
+                    except (Template.DoesNotExist, ValueError):
+                        pass
+
+            messages.success(request, 'Templates updated.')
+            return redirect('a_sequences:template_configure', project_pk=project.pk, step_pk=step.pk)
+
+        elif action == 'reorder_templates':
+            template_ids = request.POST.getlist('template_order[]')
+            with transaction.atomic():
+                for idx, template_id in enumerate(template_ids):
+                    try:
+                        template = Template.objects.get(pk=template_id, sequence_step=step)
+                        if not template.is_default:
+                            template.order = idx
+                            template.save()
+                    except Template.DoesNotExist:
+                        pass
+            return render(request, 'a_sequences/partials/template_list.html', {
+                'templates': Template.objects.filter(sequence_step=step).order_by('order'),
+                'csv_columns': project.csv_columns,
+                'step': step,
+                'project': project,
+            })
+
+    context = {
+        'project': project,
+        'step': step,
+        'templates': templates,
+        'csv_columns': csv_columns,
+    }
+    return render(request, 'a_sequences/template_configure.html', context)

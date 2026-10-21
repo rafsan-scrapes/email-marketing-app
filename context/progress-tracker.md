@@ -13,7 +13,7 @@ explicitly told to.
 
 ## Current Goal
 
-- Unit 4.1 — Template model & CRUD.
+- Unit 4.2 — Placeholder classification utility.
 
 ## Completed
 
@@ -25,6 +25,7 @@ explicitly told to.
 - Unit 2.2 — Contacts list/table view.
 - Unit 2.3 — CSV re-upload merge logic.
 - Unit 3.1 — SequenceStep model & CRUD.
+- Unit 4.1 — Template model & CRUD.
 
 ## In Progress
 
@@ -32,7 +33,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 4.1 (see Phase & Unit Roadmap below)
+- Unit 4.2 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -166,7 +167,7 @@ is sized to be implemented in one focused session/prompt.
 
 ### Phase 4 — Templates & Conditions
 
-- [ ] **4.1** `Template` model (`sequence_step` FK, `order`,
+- [x] **4.1** `Template` model (`sequence_step` FK, `order`,
       `subject` nullable — used only when `project.type == email`,
       `body` text). `TemplateCondition` model (`template` FK,
       `column_name`, `operator`, `value`). CRUD UI per sequence step:
@@ -298,3 +299,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 2.3 completed**: Updated `csv_upload_view` in `a_contacts/views.py` to implement merge-on-re-upload logic. When a project already has a `key_column` set, re-upload compares incoming rows' key values (case-insensitive, trimmed) against existing contacts' key values. Matching rows are skipped (existing contacts never updated/deleted); only new rows are inserted. Header lists are merged (union, preserving original order then appending new columns) and `project.csv_columns` is updated. Summary message shows counts: "X new contacts added, Y already existed and were left unchanged." Key column dropdown is disabled on re-upload with fixed value shown. Updated upload template and partial to reflect re-upload state. Server runs cleanly.
 
 - **Unit 3.1 completed**: Created `SequenceStep` model in `a_sequences/models.py` with `project` FK, `name`, `order`, `default_due_offset_days` (default 2). Built `sequence_configure_view` in `a_sequences/views.py` with full CRUD: initial step creation via number input, add/remove steps, inline editing of name and due offset, drag-and-drop reordering (vanilla JS), and delete with confirmation. Added URL `/sequences/project/<pk>/configure/` in `a_sequences/urls.py`. Created templates: main configure page with step list, partial for step rows with drag handles. Linked from project detail view via "Configure Sequence" button. Migration applied, server runs cleanly.
+
+- **Unit 4.1 completed**: Created `Template` model (`sequence_step` FK, `order`, `subject` nullable for email, `body`) and `TemplateCondition` model (`template` FK, `column_name`, `operator` with 7 choices, `value` blank for is_empty/is_not_empty). Built `template_configure_view` with full CRUD: default template (order=0, no conditions) auto-created per step and protected from deletion; add/remove/reorder condition templates via htmx; inline editing of subject/body; drag-and-drop reorder of condition templates; dynamic add/remove of conditions per template with column dropdown from `project.csv_columns`, operator dropdown, value input hidden for is_empty/is_not_empty. Added URL `/sequences/project/<pk>/step/<step_pk>/templates/`. Templates use plain textareas (rich editor in Unit 4.3). Migration applied, server runs cleanly.

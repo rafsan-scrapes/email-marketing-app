@@ -1,0 +1,48 @@
+<div class="condition-row flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200" data-condition-order="{{ forloop.counter0 }}">
+    <input type="hidden" name="condition_{{ template.pk }}_{{ forloop.counter0 }}_order" value="{{ forloop.counter0 }}">
+
+    <select
+        name="condition_{{ template.pk }}_{{ forloop.counter0 }}_column_name"
+        class="condition-column flex-1 min-w-0 rounded-lg py-2 px-3 bg-white border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
+        required
+    >
+        <option value="">Select column...</option>
+        {% for col in csv_columns %}
+            <option value="{{ col }}" {% if col == condition.column_name %}selected{% endif %}>{{ col }}</option>
+        {% endfor %}
+    </select>
+
+    <select
+        name="condition_{{ template.pk }}_{{ forloop.counter0 }}_operator"
+        class="condition-operator w-40 rounded-lg py-2 px-3 bg-white border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
+        required
+    >
+        <option value="">Operator...</option>
+        <option value="equals" {% if condition.operator == "equals" %}selected{% endif %}>equals</option>
+        <option value="not_equals" {% if condition.operator == "not_equals" %}selected{% endif %}>not equals</option>
+        <option value="contains" {% if condition.operator == "contains" %}selected{% endif %}>contains</option>
+        <option value="is_empty" {% if condition.operator == "is_empty" %}selected{% endif %}>is empty</option>
+        <option value="is_not_empty" {% if condition.operator == "is_not_empty" %}selected{% endif %}>is not empty</option>
+        <option value="greater_than" {% if condition.operator == "greater_than" %}selected{% endif %}>greater than</option>
+        <option value="less_than" {% if condition.operator == "less_than" %}selected{% endif %}>less than</option>
+    </select>
+
+    <input
+        type="text"
+        name="condition_{{ template.pk }}_{{ forloop.counter0 }}_value"
+        value="{{ condition.value }}"
+        class="condition-value flex-1 min-w-0 rounded-lg py-2 px-3 bg-white border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
+        placeholder="Value"
+        {% if condition.operator in "is_empty,is_not_empty" %}style="display: none;"{% endif %}
+    >
+
+    <button
+        type="button"
+        class="text-red-500 hover:text-red-700 p-1 remove-condition-btn"
+        title="Remove condition"
+    >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+    </button>
+</div>

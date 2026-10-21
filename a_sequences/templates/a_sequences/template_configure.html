@@ -1,0 +1,195 @@
+{% extends 'layouts/page.html' %}
+
+{% block content %}
+
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{% url 'a_sequences:configure' project.pk %}" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
+                ← Back to Sequence
+            </a>
+            <h1>Templates for "{{ step.name }}"</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ project.name }} · {{ project.get_type_display }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-semibold">Templates</h2>
+            <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_condition_template">
+                <button type="submit" class="button button-gray text-sm">Add Condition Template</button>
+            </form>
+        </div>
+
+        <form method="post" id="templates-form" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_templates">
+
+            <div id="templates-container">
+                {% include 'a_sequences/partials/template_list.html' with templates=templates csv_columns=csv_columns step=step project=project %}
+            </div>
+
+            <div class="flex gap-3 pt-6 border-t border-gray-200">
+                <button type="submit" class="button">Save All Templates</button>
+                <a href="{% url 'a_sequences:configure' project.pk %}" class="button button-gray">Back to Sequence</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Handle drag-and-drop reordering for condition templates
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('templates-container');
+        if (!container) return;
+
+        let draggedItem = null;
+
+        container.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('template-row') && !e.target.classList.contains('default-template')) {
+                draggedItem = e.target;
+                e.target.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            }
+        });
+
+        container.addEventListener('dragend', function(e) {
+            if (e.target.classList.contains('template-row')) {
+                e.target.classList.remove('dragging');
+                draggedItem = null;
+            }
+        });
+
+        container.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(container, e.clientY);
+            const draggable = document.querySelector('.dragging');
+            if (draggable && !draggable.classList.contains('default-template')) {
+                if (afterElement == null) {
+                    container.appendChild(draggable);
+                } else {
+                    container.insertBefore(draggable, afterElement);
+                }
+            }
+        });
+
+        container.addEventListener('drop', function(e) {
+            e.preventDefault();
+            updateTemplateOrderInputs();
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.template-row:not(.dragging):not(.default-template)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateTemplateOrderInputs() {
+            const rows = container.querySelectorAll('.template-row:not(.default-template)');
+            rows.forEach((row, index) => {
+                const orderInput = row.querySelector('input[name$="_order"]');
+                if (orderInput) {
+                    orderInput.value = index + 1; // +1 because default template is order 0
+                }
+            });
+        }
+
+        // Toggle value input visibility based on operator selection
+        container.addEventListener('change', function(e) {
+            if (e.target.classList.contains('condition-operator')) {
+                const row = e.target.closest('.condition-row');
+                const valueInput = row.querySelector('.condition-value');
+                const operator = e.target.value;
+                const requiresValue = !['is_empty', 'is_not_empty'].includes(operator);
+                valueInput.style.display = requiresValue ? 'block' : 'none';
+            }
+        });
+
+        // Add condition button handlers
+        container.addEventListener('click', function(e) {
+            if (e.target.classList.contains('add-condition-btn') || e.target.closest('.add-condition-btn')) {
+                const btn = e.target.classList.contains('add-condition-btn') ? e.target : e.target.closest('.add-condition-btn');
+                const templateId = btn.dataset.templateId;
+                const conditionsContainer = document.querySelector(`.conditions-container[data-template-id="${templateId}"]`);
+                if (conditionsContainer) {
+                    const newIndex = conditionsContainer.querySelectorAll('.condition-row').length;
+                    const templateRow = btn.closest('.template-row');
+                    const csvColumns = JSON.parse(templateRow.dataset.csvColumns || '[]');
+
+                    // Create new condition row
+                    const newRow = document.createElement('div');
+                    newRow.className = 'condition-row flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200';
+                    newRow.dataset.conditionOrder = newIndex;
+                    newRow.innerHTML = `
+                        <input type="hidden" name="condition_${templateId}_${newIndex}_order" value="${newIndex}">
+                        <select name="condition_${templateId}_${newIndex}_column_name" class="condition-column flex-1 min-w-0 rounded-lg py-2 px-3 bg-white border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm" required>
+                            <option value="">Select column...</option>
+                            ${csvColumns.map(col => `<option value="${col}">${col}</option>`).join('')}
+                        </select>
+                        <select name="condition_${templateId}_${newIndex}_operator" class="condition-operator w-40 rounded-lg py-2 px-3 bg-white border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm" required>
+                            <option value="">Operator...</option>
+                            <option value="equals">equals</option>
+                            <option value="not_equals">not equals</option>
+                            <option value="contains">contains</option>
+                            <option value="is_empty">is empty</option>
+                            <option value="is_not_empty">is not empty</option>
+                            <option value="greater_than">greater than</option>
+                            <option value="less_than">less than</option>
+                        </select>
+                        <input type="text" name="condition_${templateId}_${newIndex}_value" value="" class="condition-value flex-1 min-w-0 rounded-lg py-2 px-3 bg-white border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="Value">
+                        <button type="button" class="text-red-500 hover:text-red-700 p-1 remove-condition-btn" title="Remove condition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    `;
+                    conditionsContainer.appendChild(newRow);
+                    updateConditionOrderInputs(templateId);
+                }
+            }
+
+            // Remove condition button handlers
+            if (e.target.classList.contains('remove-condition-btn') || e.target.closest('.remove-condition-btn')) {
+                const btn = e.target.classList.contains('remove-condition-btn') ? e.target : e.target.closest('.remove-condition-btn');
+                const conditionRow = btn.closest('.condition-row');
+                const templateRow = conditionRow.closest('.template-row');
+                const templateId = templateRow.dataset.templateId;
+                conditionRow.remove();
+                updateConditionOrderInputs(templateId);
+            }
+        });
+
+        function updateConditionOrderInputs(templateId) {
+            const conditionsContainer = document.querySelector(`.conditions-container[data-template-id="${templateId}"]`);
+            if (!conditionsContainer) return;
+
+            const rows = conditionsContainer.querySelectorAll('.condition-row');
+            rows.forEach((row, index) => {
+                row.dataset.conditionOrder = index;
+                const orderInput = row.querySelector('input[name$="_order"]');
+                if (orderInput) {
+                    orderInput.value = index;
+                }
+                // Update name attributes for column_name, operator, value
+                const columnSelect = row.querySelector('.condition-column');
+                const operatorSelect = row.querySelector('.condition-operator');
+                const valueInput = row.querySelector('.condition-value');
+                if (columnSelect) columnSelect.name = `condition_${templateId}_${index}_column_name`;
+                if (operatorSelect) operatorSelect.name = `condition_${templateId}_${index}_operator`;
+                if (valueInput) valueInput.name = `condition_${templateId}_${index}_value`;
+                if (orderInput) orderInput.name = `condition_${templateId}_${index}_order`;
+            });
+        }
+    });
+</script>
+
+{% endblock %}
