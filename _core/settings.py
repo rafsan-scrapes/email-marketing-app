@@ -15,7 +15,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-PROJECT_TITLE = "My App"
+PROJECT_TITLE = "Email Marketing App"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-rj#-z^kx3j+1ay397otg6j8m_8#v^$^$jys6&41vy^&6le)ezc'
@@ -41,6 +41,10 @@ INSTALLED_APPS = [
     # My apps
     'a_home',
     'a_users',
+    'a_projects',
+    'a_sequences',
+    'a_contacts',
+    'a_generation',
     
     # Third party
     'allauth',

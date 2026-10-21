@@ -9,16 +9,15 @@ explicitly told to.
 
 ## Current Phase
 
-- Phase 0 — Base Setup (not started)
+- Phase 0 — Base Setup (in progress)
 
 ## Current Goal
 
-- Unit 0.1 — scaffold the new
-  apps.
+- Unit 0.2 — wire URLs and dashboard.
 
 ## Completed
 
-- None yet.
+- Unit 0.1 — scaffold the new apps.
 
 ## In Progress
 
@@ -26,7 +25,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 0.1 (see Phase & Unit Roadmap below)
+- Unit 0.2 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -112,7 +111,7 @@ is sized to be implemented in one focused session/prompt.
 
 ### Phase 0 — Base Setup
 
-- [ ] **0.1** Set `PROJECT_TITLE` in
+- [x] **0.1** Set `PROJECT_TITLE` in
       `_core/settings.py`, run migrations, confirm signup/login/
       email-confirmation works unmodified. Create four new empty
       Django apps: `a_projects`, `a_sequences`, `a_contacts`,
@@ -280,3 +279,5 @@ is sized to be implemented in one focused session/prompt.
   built and anything the next session needs to know (e.g. "7.1's
   resolver function lives in `a_generation/resolution.py`, imported
   by both 6.2 and 7.2").
+
+- **Unit 0.1 completed**: Set `PROJECT_TITLE` to "Email Marketing App" in `_core/settings.py`, ran migrations successfully, confirmed starter's signup/login/email-confirmation flow works (server starts cleanly, allauth URLs included). Created four empty Django apps (`a_projects`, `a_sequences`, `a_contacts`, `a_generation`) with default scaffolding and registered all four in `INSTALLED_APPS`.
