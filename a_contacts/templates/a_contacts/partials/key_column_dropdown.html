@@ -1,0 +1,27 @@
+<label for="id_key_column" class="block text-sm font-medium text-gray-700 mb-2">
+    Key Column <span class="text-red-500">*</span>
+</label>
+<select
+    name="key_column"
+    id="id_key_column"
+    required
+    class="w-full rounded-lg py-3 px-4 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+    {% if not headers %}disabled{% endif %}
+>
+    <option value="">Select key column...</option>
+    {% for header in headers %}
+        <option value="{{ header }}" {% if header == suggested_key %}selected{% endif %}>
+            {{ header }}
+        </option>
+    {% endfor %}
+</select>
+{% if headers %}
+    <p class="mt-1 text-sm text-gray-500">
+        This column uniquely identifies each contact (e.g., email for Email projects, linkedin for DM projects).
+        {% if suggested_key %}
+            Pre-selected based on project type.
+        {% endif %}
+    </p>
+{% else %}
+    <p class="mt-1 text-sm text-gray-500">Select a CSV file to populate column options.</p>
+{% endif %}

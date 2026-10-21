@@ -9,6 +9,22 @@ from a_projects.models import Project
 from a_contacts.models import Contact
 
 
+def _parse_csv_headers(csv_file):
+    """Parse CSV file and return headers list."""
+    wrapper = TextIOWrapper(csv_file.file, encoding='utf-8')
+    reader = csv.DictReader(wrapper)
+    return reader.fieldnames or []
+
+
+def _get_suggested_key(project, headers):
+    """Get suggested key column based on project type and available headers."""
+    if project.type == Project.TYPE_EMAIL:
+        return 'email' if 'email' in headers else None
+    elif project.type == Project.TYPE_LINKEDIN_DM:
+        return 'linkedin' if 'linkedin' in headers else None
+    return None
+
+
 @login_required
 def csv_upload_view(request, project_pk):
     """CSV upload form for a project - handles initial upload with key column selection."""
@@ -28,9 +44,9 @@ def csv_upload_view(request, project_pk):
 
         # Parse CSV
         try:
+            headers = _parse_csv_headers(csv_file)
             wrapper = TextIOWrapper(csv_file.file, encoding='utf-8')
             reader = csv.DictReader(wrapper)
-            headers = reader.fieldnames or []
             rows = list(reader)
         except Exception as e:
             messages.error(request, f'Error parsing CSV: {e}')
@@ -65,20 +81,32 @@ def csv_upload_view(request, project_pk):
         return redirect('a_projects:detail', pk=project.pk)
 
     # GET - show upload form with header dropdown
-    # Pre-select key column based on project type
-    suggested_key = None
-    if project.type == Project.TYPE_EMAIL:
-        suggested_key = 'email' if 'email' in project.csv_columns else None
-    elif project.type == Project.TYPE_LINKEDIN_DM:
-        suggested_key = 'linkedin' if 'linkedin' in project.csv_columns else None
+    suggested_key = _get_suggested_key(project, project.csv_columns)
 
-    # If project already has csv_columns, use those; otherwise we'll parse from file on POST
     context = {
         'project': project,
         'headers': project.csv_columns,
         'suggested_key': suggested_key,
     }
     return render(request, 'a_contacts/upload.html', context)
+
+
+@login_required
+def csv_headers_htmx(request, project_pk):
+    """HTMX endpoint: parse uploaded CSV and return key column dropdown options."""
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+
+    csv_file = request.FILES.get('csv_file')
+    if not csv_file:
+        return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': [], 'suggested_key': None})
+
+    try:
+        headers = _parse_csv_headers(csv_file)
+    except Exception:
+        headers = []
+
+    suggested_key = _get_suggested_key(project, headers)
+    return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': headers, 'suggested_key': suggested_key})
 
 
 @login_required
