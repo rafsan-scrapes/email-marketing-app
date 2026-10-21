@@ -7,7 +7,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
 from a_projects.models import Project
-from a_contacts.models import Contact
+from a_contacts.models import Contact, ContactStepPrompt
+from a_sequences.models import SequenceStep
+from a_generation.models import GeneratedAIField, GeneratedMessage
+from a_generation.resolution import resolve_template_for_contact, get_expected_output_placeholders
 
 
 def _parse_csv(csv_file):
@@ -193,3 +196,124 @@ def contacts_list_view(request, project_pk):
         'columns': project.csv_columns,
     }
     return render(request, 'a_contacts/list.html', context)
+
+
+@login_required
+def dashboard_view(request, project_pk):
+    """
+    Per-project dashboard showing all contacts with their AI field status and
+    message status for the selected sequence step.
+    """
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+    
+    # Get the selected step (default to first step if not specified)
+    step_pk = request.GET.get('step')
+    if step_pk:
+        selected_step = get_object_or_404(SequenceStep, pk=step_pk, project=project)
+    else:
+        selected_step = SequenceStep.objects.filter(project=project).order_by('order').first()
+    
+    # Get all steps for the selector
+    steps = SequenceStep.objects.filter(project=project).order_by('order')
+    
+    # Get all contacts for this project
+    contacts = Contact.objects.filter(project=project).order_by('created_at')
+    
+    # For each contact, get their AI field status and message status for the selected step
+    contacts_data = []
+    for contact in contacts:
+        # Get the key column value for display
+        key_value = ''
+        if project.key_column:
+            key_value = contact.data.get(project.key_column, '')
+        
+        # Get the template that would be used for this contact at the selected step
+        from a_sequences.models import SequenceStep as SeqStep
+        step = get_object_or_404(SequenceStep, pk=selected_step.pk, project=project)
+        template = resolve_template_for_contact(contact, step)
+        
+        # Get AI field statuses for this contact/step/template
+        from a_generation.resolution import get_expected_output_placeholders
+        csv_columns = project.csv_columns
+        expected_outputs = get_expected_output_placeholders(template, csv_columns)
+        
+        ai_status = 'not_generated'
+        ai_fields = []
+        if expected_outputs:
+            ai_fields = list(
+                GeneratedAIField.objects.filter(
+                    contact=contact,
+                    template=template
+                ).values('placeholder_name', 'status', 'value', 'error_message'))
+            if ai_fields:
+                statuses = {f['status'] for f in ai_fields}
+                if all(s == 'success' for s in statuses):
+                    ai_status = 'success'
+                elif any(s == 'error' for s in statuses):
+                    ai_status = 'error'
+                else:
+                    ai_status = 'partial'
+            else:
+                ai_status = 'not_generated'
+        
+        # Get message status
+        from a_generation.models import GeneratedMessage
+        msg = GeneratedMessage.objects.filter(
+            contact=contact,
+            sequence_step=selected_step
+        ).first()
+        msg_status = 'generated' if msg else 'not_generated'
+        
+        # Get or create contact step prompt
+        prompt_obj, _ = ContactStepPrompt.objects.get_or_create(
+            contact=contact,
+            sequence_step=selected_step,
+            defaults={'prompt_text': ''}
+        )
+        
+        contacts_data.append({
+            'contact': contact,
+            'key_value': key_value,
+            'ai_status': ai_status,
+            'ai_fields': ai_fields,
+            'msg_status': msg_status,
+            'msg': msg,
+            'prompt': prompt_obj,
+        })
+    
+    context = {
+        'project': project,
+        'steps': steps,
+        'selected_step': selected_step,
+        'contacts_data': contacts_data,
+    }
+    return render(request, 'a_contacts/dashboard.html', context)
+
+
+@login_required
+def prompt_override_htmx(request, project_pk, contact_pk, step_pk):
+    """HTMX partial to edit a contact's prompt override for a specific step."""
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+    contact = get_object_or_404(Contact, pk=contact_pk, project=project)
+    step = get_object_or_404(SequenceStep, pk=step_pk, project=project)
+    
+    prompt_obj, _ = ContactStepPrompt.objects.get_or_create(
+        contact=contact,
+        sequence_step=step,
+        defaults={'prompt_text': ''}
+    )
+    
+    if request.method == 'POST':
+        prompt_text = request.POST.get('prompt_text', '').strip()
+        prompt_obj.prompt_text = prompt_text
+        prompt_obj.save()
+        messages.success(request, 'Prompt updated.')
+        return redirect('a_contacts:dashboard', project_pk=project.pk)
+    
+    context = {
+        'project': project,
+        'contact': contact,
+        'step': step,
+        'prompt': prompt_obj,
+    }
+    return render(request, 'a_contacts/partials/prompt_override.html', context)

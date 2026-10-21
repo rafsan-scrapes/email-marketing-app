@@ -1,0 +1,51 @@
+<div
+    id="prompt-modal-container"
+    class="fixed inset-0 z-50 flex items-center justify-center"
+    hx-on:click="if(event.target===this) { this.remove(); }"
+>
+    <div class="absolute inset-0 bg-black/50"></div>
+
+    <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl z-10">
+        <h2 class="text-xl font-semibold mb-4">Configure Prompt Override</h2>
+        <p class="text-gray-600 mb-4">
+            Override the default AI prompt for <strong>{{ contact.data|get_item:project.key_column|default:contact.id }}</strong> at <strong>Step {{ step.order|add:"1" }}: {{ step.name }}</strong>.
+            Leave blank to use the template's default prompt.
+        </p>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div>
+                <label for="id_prompt_text" class="block text-sm font-medium text-gray-700 mb-1">
+                    Prompt Text
+                </label>
+                <textarea
+                    name="prompt_text"
+                    id="id_prompt_text"
+                    rows="8"
+                    class="w-full rounded-lg py-3 px-4 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-mono"
+                    placeholder="Enter custom prompt... Use {{ColumnName}} for CSV columns and {{manual_field}} for manual inputs.">{{ prompt.prompt_text }}</textarea>
+                <p class="mt-1 text-sm text-gray-500">
+                    Available CSV columns: {{ project.csv_columns|join:", " }}<br>
+                    Expected AI outputs for this template will use this prompt if set.
+                </p>
+            </div>
+
+            <div class="flex gap-3 justify-end pt-4">
+                <button
+                    type="button"
+                    onclick="this.closest('#prompt-modal-container').remove()"
+                    class="button button-gray"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    class="button"
+                >
+                    Save Prompt
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

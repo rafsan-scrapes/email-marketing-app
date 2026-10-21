@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from a_contacts.models import Contact
+from a_contacts.models import Contact, ContactStepPrompt
 from a_projects.settings_utils import get_gemini_api_key
 from a_sequences.models import Template, AIPromptConfig, SequenceStep
 from a_sequences.placeholders import get_prompt_manual_inputs
@@ -50,6 +50,18 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
     # Get manual input field names from prompt
     manual_inputs = ai_config.get_manual_inputs() if hasattr(ai_config, 'get_manual_inputs') else []
     
+    # Check for contact-specific prompt override
+    contact_prompt = None
+    try:
+        contact_prompt_obj = ContactStepPrompt.objects.get(contact=contact, sequence_step=sequence_step)
+        if contact_prompt_obj.prompt_text:
+            contact_prompt = contact_prompt_obj.prompt_text
+    except ContactStepPrompt.DoesNotExist:
+        pass
+    
+    # Determine which prompt to use (contact override takes precedence)
+    base_prompt = contact_prompt if contact_prompt else ai_config.prompt_text
+    
     # Get existing AI fields for this contact/template (for pre-filling on retry)
     existing_fields = {
         f.placeholder_name: f
@@ -76,7 +88,7 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
         
         # Build the prompt with substitutions
         prompt = _build_prompt_with_substitutions(
-            ai_config.prompt_text,
+            base_prompt,
             contact,
             manual_values,
         )
