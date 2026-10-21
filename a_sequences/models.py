@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from a_projects.models import Project
+from a_sequences.placeholders import get_prompt_manual_inputs
 
 
 class SequenceStep(models.Model):
@@ -144,3 +145,11 @@ class AIPromptConfig(models.Model):
         placeholders = extract_placeholders(combined_text)
         classification = classify_placeholders(placeholders, self.template.sequence_step.project.csv_columns)
         return classification['ai']
+
+    def get_manual_inputs(self):
+        """
+        Get the manual input field names from the prompt text.
+        These are placeholders in the prompt that don't match CSV columns.
+        """
+        csv_columns = self.template.sequence_step.project.csv_columns
+        return get_prompt_manual_inputs(self.prompt_text, csv_columns)

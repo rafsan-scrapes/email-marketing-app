@@ -9,11 +9,11 @@ explicitly told to.
 
 ## Current Phase
 
-- Phase 6 — Gemini Integration & AI Field Generation
+- Phase 7 — Email/DM Generation & Review
 
 ## Current Goal
 
-- Unit 6.1 — Gemini API client wrapper.
+- Unit 7.1 — Template-resolution function & GeneratedMessage model.
 
 ## Completed
 
@@ -30,6 +30,8 @@ explicitly told to.
 - Unit 4.3 — Drag-and-drop rich-text template editor.
 - Unit 5.1 — AIPromptConfig model & AI configure view.
 - Unit 5.2 — Manual input detection & auto-formatting.
+- Unit 6.1 — Gemini API client wrapper.
+- Unit 6.2 — GeneratedAIField model & "Generate AI Fields" view.
 
 ## In Progress
 
@@ -37,7 +39,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 6.1 (see Phase & Unit Roadmap below)
+- Unit 7.1 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -213,12 +215,12 @@ is sized to be implemented in one focused session/prompt.
 
 ### Phase 6 — Gemini Integration & AI Field Generation
 
-- [ ] **6.1** Gemini API client wrapper: server-side POST to the
+- [x] **6.1** Gemini API client wrapper: server-side POST to the
       Gemini free-tier endpoint using the key from `Settings`;
       normalize failure modes (missing/invalid key, rate limit,
       quota exceeded, generic error) into a single error type/message
       the UI can display.
-- [ ] **6.2** `GeneratedAIField` model (`contact` FK, `template` FK,
+- [x] **6.2** `GeneratedAIField` model (`contact` FK, `template` FK,
       `placeholder_name`, `value`, `status` = success|error,
       `error_message`, `generated_at`). "Generate AI Fields" view for
       one contact + sequence step: resolve the matching template
@@ -313,3 +315,7 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 5.1 completed**: Created `AIPromptConfig` model in `a_sequences/models.py` with `template` OneToOneField and `prompt_text` TextField. Added `get_expected_output_placeholders()` method to derive AI-sourced placeholders live from template's subject/body using the shared placeholder utility. Built `ai_prompt_configure_view` in `a_sequences/views.py` that: checks for AI-sourced placeholders (redirects with message if none), displays expected output placeholder names as badges, provides prompt_text textarea with guidance on CSV column and manual input syntax, saves prompt on POST. Added URL `/sequences/project/<pk>/step/<step_pk>/template/<template_pk>/ai/` in `a_sequences/urls.py`. Created `a_sequences/templates/a_sequences/ai_prompt_configure.html` with expected outputs display and prompt textarea. Added "Configure AI" link in `template_list.html` partial shown only when template has AI-sourced placeholders. Migration applied, server runs cleanly.
 
 - **Unit 5.2 completed**: Added `get_prompt_manual_inputs()` to `a_sequences/placeholders.py` to detect manual-input tokens in prompt text (tokens not matching CSV columns). Created `a_sequences/ai_formatting.py` with `build_gemini_prompt()` that appends auto-generated formatting instructions requiring XML-style tagged output for each expected placeholder. Updated `ai_prompt_configure_view` to display manual inputs as amber badges under "Detected Manual Input Fields" section. Updated `ai_prompt_configure.html` to show manual inputs. Tested both functions: manual input detection correctly identifies non-CSV tokens, and formatting function wraps outputs in `<placeholder>[value]</placeholder>` tags.
+
+- **Unit 6.1 completed**: Created `a_generation/gemini_client.py` with `call_gemini(prompt)` function returning `GeminiResult` dataclass (success, raw_text, error_message). Fetches API key via `a_projects.settings_utils.get_gemini_api_key()`. Uses Gemini 1.5 Flash free-tier endpoint (`gemini-1.5-flash` via `generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`). Normalizes failures: missing/invalid key (401/400 with API key message), rate limit (429), quota/permission (403), server errors (5xx), timeout/connection errors, generic fallback. Returns `GeminiResult(success, raw_text, error_message)`. Tested: returns clear error when no API key configured.
+
+- **Unit 6.2 completed**: Created `GeneratedAIField` model in `a_generation/models.py` with contact FK, template FK, placeholder_name, value, status (success/error), error_message, generated_at. Created `a_generation/resolution.py` with shared template-resolution function `resolve_template_for_contact()` (evaluates condition templates in order, falls back to default), `parse_gemini_response()` for parsing XML-style tagged output, and helpers. Created `generate_ai_fields_view` in `a_generation/views.py` that: resolves template for contact/step, renders manual input fields from Unit 5.2, substitutes CSV/manual values into prompt, calls `build_gemini_prompt()` and `call_gemini()`, parses tagged response into per-placeholder `GeneratedAIField` rows (overwriting on retry), handles per-field retry via `retry_field` POST param. Added URL `/generation/project/<pk>/contact/<pk>/step/<pk>/ai-fields/`. Created template with manual input form, expected outputs display, existing fields table with per-field retry/regenerate buttons. Error isolation: Gemini failure for one contact/step saves error status on that row only, never blocks other contacts. Resolution function lives in `a_generation/resolution.py` for Phase 7 reuse.

@@ -1,3 +1,189 @@
-from django.shortcuts import render
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
 
-# Create your views here.
+from a_contacts.models import Contact
+from a_projects.settings_utils import get_gemini_api_key
+from a_sequences.models import Template, AIPromptConfig
+from a_sequences.placeholders import get_prompt_manual_inputs
+from a_sequences.ai_formatting import build_gemini_prompt
+from a_generation.models import GeneratedAIField
+from a_generation.gemini_client import call_gemini
+from a_generation.resolution import (
+    resolve_template_for_contact,
+    get_expected_output_placeholders,
+    parse_gemini_response,
+)
+
+
+@login_required
+def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
+    """
+    Generate AI fields for a single contact at a specific sequence step.
+    
+    GET: Shows form with manual input fields for the AI prompt
+    POST: Substitutes CSV/manual values into prompt, calls Gemini, parses and saves results
+    """
+    contact = get_object_or_404(Contact, pk=contact_pk, project_id=project_pk)
+    sequence_step = get_object_or_404(contact.project.sequence_steps, pk=step_pk)
+    
+    # Resolve the appropriate template for this contact
+    template = resolve_template_for_contact(contact, contact.project.sequence_steps.get(pk=step_pk))
+    
+    # Check if template has AI prompt config
+    try:
+        ai_config = template.ai_prompt_config
+    except AIPromptConfig.DoesNotExist:
+        messages.error(request, 'No AI prompt configured for the resolved template.')
+        return redirect('a_contacts:list', project_pk=contact.project_id)
+    
+    # Get expected outputs (AI-sourced placeholders from template)
+    csv_columns = contact.project.csv_columns
+    expected_outputs = get_expected_output_placeholders(template, csv_columns)
+    
+    if not expected_outputs:
+        messages.info(request, 'The resolved template has no AI-sourced placeholders to generate.')
+        return redirect('a_contacts:list', project_pk=contact.project_id)
+    
+    # Get manual input field names from prompt
+    manual_inputs = ai_config.get_manual_inputs() if hasattr(ai_config, 'get_manual_inputs') else []
+    
+    # Get existing AI fields for this contact/template (for pre-filling on retry)
+    existing_fields = {
+        f.placeholder_name: f
+        for f in GeneratedAIField.objects.filter(contact=contact, template=template)
+    }
+    
+    if request.method == 'POST':
+        # Check if this is a retry for a specific field
+        retry_field = request.POST.get('retry_field')
+        
+        if retry_field:
+            # Retry just this specific field
+            field_names = [retry_field]
+            # Re-fetch manual inputs for this field if needed
+            manual_values = {retry_field: request.POST.get(retry_field, '')}
+        else:
+            # Generate all fields
+            field_names = expected_outputs
+            # Collect manual input values from form
+            manual_values = {
+                field: request.POST.get(field, '')
+                for field in ai_config.get_manual_inputs()
+            }
+        
+        # Build the prompt with substitutions
+        prompt = _build_prompt_with_substitutions(
+            ai_config.prompt_text,
+            contact,
+            manual_values,
+        )
+        
+        # Apply auto-formatting
+        formatted_prompt = build_gemini_prompt(prompt, field_names)
+        
+        # Call Gemini
+        result = call_gemini(formatted_prompt)
+        
+        if not result.success:
+            # Save error for each requested field
+            for field_name in field_names:
+                GeneratedAIField.objects.update_or_create(
+                    contact=contact,
+                    template=template,
+                    placeholder_name=field_name,
+                    defaults={
+                        'value': '',
+                        'status': GeneratedAIField.STATUS_ERROR,
+                        'error_message': result.error_message,
+                    }
+                )
+            messages.error(request, f'Gemini error: {result.error_message}')
+            return redirect('a_generation:generate_ai_fields', project_pk=project_pk, contact_pk=contact_pk, step_pk=step_pk)
+        
+        # Parse the response
+        try:
+            parsed = parse_gemini_response(result.raw_text, field_names)
+        except ValueError as e:
+            for field_name in field_names:
+                GeneratedAIField.objects.update_or_create(
+                    contact=contact,
+                    template=template,
+                    placeholder_name=field_name,
+                    defaults={
+                        'value': '',
+                        'status': GeneratedAIField.STATUS_ERROR,
+                        'error_message': str(e),
+                    }
+                )
+            messages.error(request, f'Failed to parse AI response: {e}')
+            return redirect('a_generation:generate_ai_fields', project_pk=project_pk, contact_pk=contact_pk, step_pk=step_pk)
+        
+        # Save successful results
+        for field_name in field_names:
+            GeneratedAIField.objects.update_or_create(
+                contact=contact,
+                template=template,
+                placeholder_name=field_name,
+                defaults={
+                    'value': parsed.get(field_name, ''),
+                    'status': GeneratedAIField.STATUS_SUCCESS,
+                    'error_message': '',
+                }
+            )
+        
+        if retry_field:
+            messages.success(request, f'Successfully generated {retry_field}.')
+        else:
+            messages.success(request, f'Successfully generated {len(field_names)} AI field(s).')
+        
+        return redirect('a_generation:generate_ai_fields', project_pk=project_pk, contact_pk=contact_pk, step_pk=step_pk)
+    
+    # GET request - show form
+    manual_input_fields = ai_config.get_manual_inputs() if hasattr(ai_config, 'get_manual_inputs') else []
+    
+    context = {
+        'contact': contact,
+        'template': template,
+        'sequence_step': contact.project.sequence_steps.get(pk=step_pk),
+        'ai_config': ai_config,
+        'expected_outputs': expected_outputs,
+        'manual_inputs': manual_input_fields,
+        'existing_fields': existing_fields,
+        'csv_columns': contact.project.csv_columns,
+    }
+    return render(request, 'a_generation/generate_ai_fields.html', context)
+
+
+def _build_prompt_with_substitutions(prompt_text, contact, manual_values):
+    """
+    Substitute CSV columns and manual values into the prompt template.
+    
+    Args:
+        prompt_text: The raw prompt text with {{...}} placeholders
+        contact: Contact instance
+        manual_values: Dict of manual input field names -> values
+        
+    Returns:
+        Prompt text with all placeholders substituted
+    """
+    from a_sequences.placeholders import extract_placeholders
+    
+    result = prompt_text
+    
+    # First, substitute manual inputs (these take priority)
+    for field_name, value in manual_values.items():
+        result = result.replace(f'{{{{{field_name}}}}}', str(value))
+    
+    # Then substitute CSV columns from contact data
+    placeholders = extract_placeholders(prompt_text)
+    for placeholder in placeholders:
+        if placeholder in manual_values:
+            continue  # Already substituted
+        # Look up in contact data (case-insensitive)
+        for key, val in contact.data.items():
+            if key.lower() == placeholder.lower():
+                result = result.replace(f'{{{{{placeholder}}}}}', str(val))
+                break
+    
+    return result
