@@ -9,11 +9,11 @@ explicitly told to.
 
 ## Current Phase
 
-- Phase 2 — CSV Import & Contacts
+- Phase 3 — Sequence Steps
 
 ## Current Goal
 
-- Unit 2.3 — CSV re-upload merge logic.
+- Unit 3.1 — SequenceStep model & CRUD.
 
 ## Completed
 
@@ -23,6 +23,7 @@ explicitly told to.
 - Unit 1.2 — Settings model & page.
 - Unit 2.1 — Contact model & CSV import.
 - Unit 2.2 — Contacts list/table view.
+- Unit 2.3 — CSV re-upload merge logic.
 
 ## In Progress
 
@@ -30,7 +31,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 2.3 (see Phase & Unit Roadmap below)
+- Unit 3.1 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -149,7 +150,7 @@ is sized to be implemented in one focused session/prompt.
 - [x] **2.2** Contacts list/table view for a project: columns are
       built dynamically from `project.csv_columns`, plus
       current-step and due-date columns.
-- [ ] **2.3** Re-upload flow: same upload form, but this time match
+- [x] **2.3** Re-upload flow: same upload form, but this time match
       incoming rows against existing contacts by `key_column` value
       (case-insensitive, trimmed); only insert rows with no match;
       leave every existing `Contact` row untouched. Show a summary
@@ -293,4 +294,4 @@ is sized to be implemented in one focused session/prompt.
 
 - **Unit 1.2 completed**: Added `Settings` model in `a_projects/models.py` with single-row enforcement (pk=1) and `gemini_api_key` TextField. Created `settings_view` in `a_projects/views.py` (GET shows current key, POST updates it, creates row on first access via `Settings.get_settings()`). Added `a_projects/settings_utils.py` with `get_gemini_api_key()` helper for other apps to import. Created `a_projects/templates/a_projects/settings.html` with password input for API key, link to Google AI Studio, and status indicator. Added URL `/projects/settings/` in `a_projects/urls.py`. Added "App Settings" link to user dropdown in `templates/includes/header.html`. Migration applied, server runs cleanly.
 
-- **Unit 2.2 completed**: Created `contacts_list_view` in `a_contacts/views.py` that displays contacts for a project in a read-only table. Columns are dynamically built from `project.csv_columns` (reading each Contact's data dict by those keys in order), plus `current_step` and `next_due_date` columns. Added URL `/contacts/project/<pk>/` in `a_contacts/urls.py`. Created template `a_contacts/templates/a_contacts/list.html` with responsive table, horizontal scrolling, and empty state. Added `get_item` template filter in `a_contacts/templatetags/contacts_extras.py` for dynamic dictionary key access. Project detail page now links to contacts list. Server runs cleanly.
+- **Unit 2.3 completed**: Updated `csv_upload_view` in `a_contacts/views.py` to implement merge-on-re-upload logic. When a project already has a `key_column` set, re-upload compares incoming rows' key values (case-insensitive, trimmed) against existing contacts' key values. Matching rows are skipped (existing contacts never updated/deleted); only new rows are inserted. Header lists are merged (union, preserving original order then appending new columns) and `project.csv_columns` is updated. Summary message shows counts: "X new contacts added, Y already existed and were left unchanged." Key column dropdown is disabled on re-upload with fixed value shown. Updated upload template and partial to reflect re-upload state. Server runs cleanly.
