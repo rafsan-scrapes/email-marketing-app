@@ -59,6 +59,27 @@
                     placeholder="Template body (use {{Column}} placeholders)">{{ template.body }}</textarea>
             </div>
 
+            {% if template.placeholder_classification %}
+                <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Placeholder Classification</div>
+                    <div class="flex flex-wrap gap-3 text-sm">
+                        {% if template.placeholder_classification.csv %}
+                            <span class="text-green-700 bg-green-50 px-2 py-1 rounded">
+                                <strong>CSV:</strong> {{ template.placeholder_classification.csv|join:", " }}
+                            </span>
+                        {% endif %}
+                        {% if template.placeholder_classification.ai %}
+                            <span class="text-purple-700 bg-purple-50 px-2 py-1 rounded">
+                                <strong>AI:</strong> {{ template.placeholder_classification.ai|join:", " }}
+                            </span>
+                        {% endif %}
+                        {% if not template.placeholder_classification.csv and not template.placeholder_classification.ai %}
+                            <span class="text-gray-500">No placeholders found</span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
             {% if not template.is_default %}
                 <div class="border-t border-gray-200 pt-4">
                     <div class="flex items-center justify-between mb-3">

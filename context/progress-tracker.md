@@ -13,7 +13,7 @@ explicitly told to.
 
 ## Current Goal
 
-- Unit 4.2 — Placeholder classification utility.
+- Unit 4.3 — Drag-and-drop rich-text template editor.
 
 ## Completed
 
@@ -26,6 +26,7 @@ explicitly told to.
 - Unit 2.3 — CSV re-upload merge logic.
 - Unit 3.1 — SequenceStep model & CRUD.
 - Unit 4.1 — Template model & CRUD.
+- Unit 4.2 — Placeholder classification utility.
 
 ## In Progress
 
@@ -33,7 +34,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 4.2 (see Phase & Unit Roadmap below)
+- Unit 4.3 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -176,7 +177,7 @@ is sized to be implemented in one focused session/prompt.
       with its own list of ANDed conditions (column dropdown from
       `project.csv_columns`, operator dropdown, value input — value
       input hidden for `is_empty`/`is_not_empty`).
-- [ ] **4.2** Shared placeholder-parsing utility function (extracts
+- [x] **4.2** Shared placeholder-parsing utility function (extracts
       `{{...}}` tokens from any text, trims/normalizes them) used
       here to classify each template's placeholders as CSV-sourced
       vs. AI-sourced; show this classification under the Subject/
@@ -301,3 +302,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 3.1 completed**: Created `SequenceStep` model in `a_sequences/models.py` with `project` FK, `name`, `order`, `default_due_offset_days` (default 2). Built `sequence_configure_view` in `a_sequences/views.py` with full CRUD: initial step creation via number input, add/remove steps, inline editing of name and due offset, drag-and-drop reordering (vanilla JS), and delete with confirmation. Added URL `/sequences/project/<pk>/configure/` in `a_sequences/urls.py`. Created templates: main configure page with step list, partial for step rows with drag handles. Linked from project detail view via "Configure Sequence" button. Migration applied, server runs cleanly.
 
 - **Unit 4.1 completed**: Created `Template` model (`sequence_step` FK, `order`, `subject` nullable for email, `body`) and `TemplateCondition` model (`template` FK, `column_name`, `operator` with 7 choices, `value` blank for is_empty/is_not_empty). Built `template_configure_view` with full CRUD: default template (order=0, no conditions) auto-created per step and protected from deletion; add/remove/reorder condition templates via htmx; inline editing of subject/body; drag-and-drop reorder of condition templates; dynamic add/remove of conditions per template with column dropdown from `project.csv_columns`, operator dropdown, value input hidden for is_empty/is_not_empty. Added URL `/sequences/project/<pk>/step/<step_pk>/templates/`. Templates use plain textareas (rich editor in Unit 4.3). Migration applied, server runs cleanly.
+
+- **Unit 4.2 completed**: Created `a_sequences/placeholders.py` with `extract_placeholders()` (extracts `{{...}}` tokens, trims, deduplicates preserving order), `classify_placeholders()` (CSV-sourced vs AI-sourced via case-insensitive match against `project.csv_columns`), and `get_placeholder_classification()` convenience function. Updated `template_configure_view` to compute classification for each template's subject+body and attached as `template.placeholder_classification`. Updated `template_list.html` partial to display classification badges under Body field: green "CSV: ..." for matched columns, purple "AI: ..." for unmatched. Invariant 3 satisfied: placeholders matching CSV columns (case-insensitive, trimmed) are CSV-sourced; others are AI-sourced.

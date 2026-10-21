@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from a_projects.models import Project
 from a_sequences.models import SequenceStep, Template, TemplateCondition
+from a_sequences.placeholders import extract_placeholders, classify_placeholders
 
 
 @login_required
@@ -262,4 +263,16 @@ def template_configure_view(request, project_pk, step_pk):
         'templates': templates,
         'csv_columns': csv_columns,
     }
+    # Add placeholder classification for each template
+    for template in templates:
+        # Combine subject and body for placeholder extraction
+        combined_text = ''
+        if template.subject:
+            combined_text += template.subject + '\n'
+        combined_text += template.body
+        
+        placeholders = extract_placeholders(combined_text)
+        classification = classify_placeholders(placeholders, csv_columns)
+        template.placeholder_classification = classification
+    
     return render(request, 'a_sequences/template_configure.html', context)
