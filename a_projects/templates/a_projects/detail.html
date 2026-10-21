@@ -31,7 +31,17 @@
 
     {% if project.key_column %}
         <div class="bg-white p-6 rounded-lg shadow border border-gray-200 mb-6">
-            <h2 class="text-lg font-semibold mb-4">Contacts</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Contacts</h2>
+                <div class="flex gap-2">
+                    <a href="{% url 'a_contacts:list' project.pk %}" class="button button-gray text-sm">
+                        View Contacts Table
+                    </a>
+                    <a href="{% url 'a_contacts:dashboard' project.pk %}" class="button text-sm">
+                        Open Dashboard
+                    </a>
+                </div>
+            </div>
             {% if project.contacts.exists %}
                 <p class="text-gray-600">{{ project.contacts.count }} contacts imported.</p>
                 <p class="text-sm text-gray-500 mt-1">Key column: <strong>{{ project.key_column }}</strong></p>
@@ -43,8 +53,7 @@
     {% else %}
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
             <h2 class="text-lg font-semibold text-yellow-800 mb-2">No CSV uploaded yet</h2>
-            <p class="text-yellow-700">Upload a CSV file to import contacts for this project.</p>
-        </div>
+            <p class="text-yellow-700">Upload a CSV file to import contacts for this project.</        </div>
     {% endif %}
 
     <div class="bg-white p-6 rounded-lg shadow border border-gray-200">

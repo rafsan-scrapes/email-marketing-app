@@ -530,3 +530,21 @@ def bulk_generate_email_dm_view(request, project_pk):
         messages.error(request, f'Failed to generate Email/DM for {error_count} contact(s).')
     
     return redirect('a_contacts:dashboard', project_pk=project.pk)
+
+
+@login_required
+def message_modal_view(request, project_pk, contact_pk):
+    """HTMX partial to show all messages for a contact across all steps."""
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+    contact = get_object_or_404(Contact, pk=contact_pk, project=project)
+    
+    messages_qs = GeneratedMessage.objects.filter(
+        contact=contact
+    ).select_related('sequence_step', 'template_used').order_by('sequence_step__order')
+    
+    context = {
+        'project': project,
+        'contact': contact,
+        'messages': messages_qs,
+    }
+    return render(request, 'a_contacts/partials/message_modal.html', context)
