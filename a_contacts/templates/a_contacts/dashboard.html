@@ -97,6 +97,10 @@
                                         <input type="checkbox" name="contact_ids" value="{{ cd.contact.pk }}" class="row-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                     </td>
                                 
+                                <td class="px-4 py-3 text-sm truncate max-w-xs">
+                                    {{ cd.key_value|default:"-" }}
+                                </td>
+                                
                                 <td class="px-4 py-3 text-sm">
                                     {% if cd.ai_status == 'success' %}
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
