@@ -9,11 +9,11 @@ explicitly told to.
 
 ## Current Phase
 
-- Phase 7 — Email/DM Generation & Review
+- Phase 8 — Deletion & Cleanup
 
 ## Current Goal
 
-- Unit 7.4 — Bulk actions on the contact dashboard.
+- Unit 8.1 — Project delete flow with cascade.
 
 ## Completed
 
@@ -35,6 +35,7 @@ explicitly told to.
 - Unit 7.1 — Template-resolution function.
 - Unit 7.2 — GeneratedMessage model & "Generate Email/DM" view.
 - Unit 7.3 — Contact dashboard + per-contact prompt override.
+- Unit 7.4 — Bulk actions on the contact dashboard.
 
 ## In Progress
 
@@ -42,7 +43,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 7.4 (see Phase & Unit Roadmap below)
+- Unit 8.1 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -370,7 +371,7 @@ is sized to be implemented in one focused session/prompt.
         back to the template default unchanged from today's
         behavior; attempting Generate Email/DM with no AI values
         present fails with the existing missing-placeholder message.
-- [ ] **7.4** Bulk actions on the contact dashboard. Build:
+- [x] **7.4** Bulk actions on the contact dashboard. Build:
       - Row checkboxes + a "select all" control.
       - Two buttons above the table: "Send Prompt" and "Generate
         Email/DM", both scoped to the step chosen in 7.3's global
