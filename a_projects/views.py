@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, DeleteView, ListView
+from django.views.generic import CreateView, DeleteView, DetailView, ListView
 
 from a_projects.models import Project, Settings
 
@@ -40,6 +40,15 @@ class ProjectDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_success_url(self):
         return reverse_lazy('a_projects:list')
+
+
+class ProjectDetailView(LoginRequiredMixin, DetailView):
+    model = Project
+    template_name = 'a_projects/detail.html'
+    context_object_name = 'project'
+
+    def get_queryset(self):
+        return Project.objects.filter(owner=self.request.user)
 
 
 @login_required

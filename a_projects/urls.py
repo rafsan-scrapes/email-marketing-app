@@ -3,6 +3,7 @@ from django.urls import path
 from a_projects.views import (
     ProjectCreateView,
     ProjectDeleteView,
+    ProjectDetailView,
     ProjectListView,
     project_create_htmx,
     project_delete_confirm_htmx,
@@ -14,6 +15,7 @@ app_name = 'a_projects'
 urlpatterns = [
     path('', ProjectListView.as_view(), name='list'),
     path('create/', ProjectCreateView.as_view(), name='create'),
+    path('<int:pk>/', ProjectDetailView.as_view(), name='detail'),
     path('<int:pk>/delete/', ProjectDeleteView.as_view(), name='delete'),
     path('settings/', settings_view, name='settings'),
     # HTMX endpoints
