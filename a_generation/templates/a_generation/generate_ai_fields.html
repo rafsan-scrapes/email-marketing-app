@@ -99,12 +99,16 @@
                 </div>
 
                 <div class="flex gap-3">
-                    <button type="submit" class="button">
+                    <button type="submit" class="button" id="generate-ai-btn" onclick="showLoading(this)">
                         Generate AI Fields
                     </button>
                     <a href="{% url 'a_contacts:list' contact.project_id %}" class="button button-gray">
                         Cancel
                     </a>
+                </div>
+                <div id="loading-indicator" class="mt-4 hidden flex items-center gap-2 text-sm text-indigo-600">
+                    <div class="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <span>Generating AI fields via Gemini...</span>
                 </div>
             </div>
         </form>
@@ -174,5 +178,13 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+    function showLoading(btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Generating...';
+        document.getElementById('loading-indicator').classList.remove('hidden');
+    }
+</script>
 
 {% endblock %}

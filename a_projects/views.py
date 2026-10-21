@@ -115,6 +115,7 @@ def project_delete_confirm_htmx(request, pk):
 @login_required
 def project_create_htmx(request):
     """HTMX partial for project create form"""
+    errors = []
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         project_type = request.POST.get('type')
@@ -127,7 +128,12 @@ def project_create_htmx(request):
             response = render(request, 'a_projects/partials/project_row.html', {'project': project})
             response['HX-Trigger'] = 'projectCreated'
             return response
-    return render(request, 'a_projects/partials/create_form.html')
+        else:
+            if not name:
+                errors.append('Project name is required.')
+            if project_type not in [Project.TYPE_EMAIL, Project.TYPE_LINKEDIN_DM]:
+                errors.append('Please select a valid project type.')
+    return render(request, 'a_projects/partials/create_form.html', {'errors': errors})
 
 
 @login_required
@@ -139,8 +145,7 @@ def settings_view(request):
         api_key = request.POST.get('gemini_api_key', '').strip()
         settings_obj.gemini_api_key = api_key
         settings_obj.save()
-        # Re-fetch to show updated value
+        messages.success(request, 'Settings saved successfully.')
         settings_obj = Settings.get_settings()
-        # Could add a success message here
 
     return render(request, 'a_projects/settings.html', {'settings': settings_obj})

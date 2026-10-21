@@ -37,6 +37,10 @@
             <div id="key-column-container">
                 {% include 'a_contacts/partials/key_column_dropdown.html' with headers=headers suggested_key=suggested_key is_reupload=is_reupload %}
             </div>
+            <div id="csv-loading-indicator" class="hidden flex items-center gap-2 text-sm text-indigo-600 mt-2">
+                <div class="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
+                <span>Reading CSV columns...</span>
+            </div>
 
             <div class="flex gap-3 pt-4">
                 <button type="submit" class="button">
@@ -56,6 +60,9 @@
             
             fileInput.addEventListener('change', function() {
                 if (!this.files.length) return;
+                
+                const loadingIndicator = document.getElementById('csv-loading-indicator');
+                loadingIndicator.classList.remove('hidden');
                 
                 const formData = new FormData();
                 formData.append('csv_file', this.files[0]);
@@ -79,10 +86,12 @@
                 })
                 .then(html => {
                     container.innerHTML = html;
+                    loadingIndicator.classList.add('hidden');
                 })
                 .catch(err => {
                     console.error('Error fetching headers:', err);
                     container.innerHTML = '<p class="text-red-500 text-center py-2">Error loading columns. Please try again.</p>';
+                    loadingIndicator.classList.add('hidden');
                 });
             });
         });
