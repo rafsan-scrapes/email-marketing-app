@@ -1,0 +1,75 @@
+{% extends 'layouts/page.html' %}
+{% load contacts_extras %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{% url 'a_projects:detail' project.pk %}" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
+                ← Back to {{ project.name }}
+            </a>
+            <h1>Contacts</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ contacts.count }} contact{{ contacts.count|pluralize }}</p>
+        </div>
+        <a href="{% url 'a_contacts:upload' project.pk %}" class="button button-gray">
+            Re-upload CSV
+        </a>
+    </div>
+
+    {% if contacts %}
+        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            {% for col in columns %}
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    {{ col }}
+                                </th>
+                            {% endfor %}
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Current Step
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Next Due Date
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for contact in contacts %}
+                            <tr class="hover:bg-gray-50">
+                                {% for col in columns %}
+                                    <td class="px-4 py-3 text-sm text-gray-900">
+                                        {{ contact.data|get_item:col|default:"—" }}
+                                    </td>
+                                {% endfor %}
+                                <td class="px-4 py-3 text-sm text-gray-900">
+                                    {{ contact.current_step }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-900">
+                                    {{ contact.next_due_date|date:"M d, Y"|default:"—" }}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="{{ columns|length|add:2 }}" class="px-4 py-8 text-center text-gray-500">
+                                    No contacts yet.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <div class="bg-white p-8 rounded-lg shadow border border-gray-200 text-center">
+            <p class="text-gray-500 mb-4">No contacts imported yet.</p>
+            <a href="{% url 'a_contacts:upload' project.pk %}" class="button">
+                Upload CSV
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

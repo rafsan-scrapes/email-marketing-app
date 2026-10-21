@@ -79,3 +79,17 @@ def csv_upload_view(request, project_pk):
         'suggested_key': suggested_key,
     }
     return render(request, 'a_contacts/upload.html', context)
+
+
+@login_required
+def contacts_list_view(request, project_pk):
+    """Read-only table view of contacts for a project."""
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+    contacts = Contact.objects.filter(project=project).order_by('created_at')
+
+    context = {
+        'project': project,
+        'contacts': contacts,
+        'columns': project.csv_columns,
+    }
+    return render(request, 'a_contacts/list.html', context)
