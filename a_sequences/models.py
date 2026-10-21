@@ -79,6 +79,16 @@ class TemplateCondition(models.Model):
         (OPERATOR_LESS_THAN, 'less than'),
     ]
 
+    OPERATOR_CHOICES = [
+        (OPERATOR_EQUALS, 'equals'),
+        (OPERATOR_NOT_EQUALS, 'not equals'),
+        (OPERATOR_CONTAINS, 'contains'),
+        (OPERATOR_IS_EMPTY, 'is empty'),
+        (OPERATOR_IS_NOT_EMPTY, 'is not empty'),
+        (OPERATOR_GREATER_THAN, 'greater than'),
+        (OPERATOR_LESS_THAN, 'less than'),
+    ]
+
     template = models.ForeignKey(
         Template,
         on_delete=models.CASCADE,
@@ -100,3 +110,37 @@ class TemplateCondition(models.Model):
     @property
     def requires_value(self):
         return self.operator not in [self.OPERATOR_IS_EMPTY, self.OPERATOR_IS_NOT_EMPTY]
+
+
+class AIPromptConfig(models.Model):
+    """AI prompt configuration for a template - used to generate AI-sourced placeholders."""
+    template = models.OneToOneField(
+        Template,
+        on_delete=models.CASCADE,
+        related_name='ai_prompt_config'
+    )
+    prompt_text = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"AI Prompt for {self.template}"
+
+    def get_expected_output_placeholders(self, csv_columns):
+        """
+        Get the expected output placeholder names for this template.
+        These are the AI-sourced placeholders from the template's subject/body.
+        """
+        from a_sequences.placeholders import extract_placeholders, classify_placeholders
+        
+        combined_text = ''
+        if self.template.subject:
+            combined_text += self.template.subject + '\n'
+        combined_text += self.template.body
+        
+        placeholders = extract_placeholders(combined_text)
+        classification = classify_placeholders(placeholders, self.template.sequence_step.project.csv_columns)
+        return classification['ai']

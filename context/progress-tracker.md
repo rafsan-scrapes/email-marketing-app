@@ -13,7 +13,7 @@ explicitly told to.
 
 ## Current Goal
 
-- Unit 5.1 — AIPromptConfig model & AI configure view.
+- Unit 5.2 — Manual input detection & auto-formatting.
 
 ## Completed
 
@@ -28,6 +28,7 @@ explicitly told to.
 - Unit 4.1 — Template model & CRUD.
 - Unit 4.2 — Placeholder classification utility.
 - Unit 4.3 — Drag-and-drop rich-text template editor.
+- Unit 5.1 — AIPromptConfig model & AI configure view.
 
 ## In Progress
 
@@ -35,7 +36,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 5.1 (see Phase & Unit Roadmap below)
+- Unit 5.2 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -194,7 +195,7 @@ is sized to be implemented in one focused session/prompt.
 
 ### Phase 5 — AI Prompt Configuration
 
-- [ ] **5.1** `AIPromptConfig` model (`template` OneToOne,
+- [x] **5.1** `AIPromptConfig` model (`template` OneToOne,
       `prompt_text`). "Configure AI" view per template: only shown/
       relevant when the template has at least one AI-sourced
       placeholder (per 4.2's classification); lists those expected
@@ -307,3 +308,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 4.2 completed**: Created `a_sequences/placeholders.py` with `extract_placeholders()` (extracts `{{...}}` tokens, trims, deduplicates preserving order), `classify_placeholders()` (CSV-sourced vs AI-sourced via case-insensitive match against `project.csv_columns`), and `get_placeholder_classification()` convenience function. Updated `template_configure_view` to compute classification for each template's subject+body and attached as `template.placeholder_classification`. Updated `template_list.html` partial to display classification badges under Body field: green "CSV: ..." for matched columns, purple "AI: ..." for unmatched. Invariant 3 satisfied: placeholders matching CSV columns (case-insensitive, trimmed) are CSV-sourced; others are AI-sourced.
 
 - **Unit 4.3 completed**: Replaced plain `<textarea>` inputs with `contentEditable` `<div>` fields in `a_sequences/partials/template_list.html` (subject for email projects, body for all). Added CSV column chips as draggable elements in `placeholder-chips` container. Created `static/js/template-editor.js` (vanilla JS, no framework/build step) handling: `dragstart` on chips, `dragover`/`drop` on contentEditable fields to insert `{{Column Name}}` at cursor position via `Range`/`Selection` API, and `input` event to sync content to hidden form fields (`template_<pk>_subject`, `template_<pk>_body`). Form submission serializes contentEditable text into same backend fields; Unit 4.2 classification continues to work on submitted text. Subject field omitted for `linkedin_dm` projects. Only the insertion interaction uses vanilla JS — rest of UI remains htmx/Django.
+
+- **Unit 5.1 completed**: Created `AIPromptConfig` model in `a_sequences/models.py` with `template` OneToOneField and `prompt_text` TextField. Added `get_expected_output_placeholders()` method to derive AI-sourced placeholders live from template's subject/body using the shared placeholder utility. Built `ai_prompt_configure_view` in `a_sequences/views.py` that: checks for AI-sourced placeholders (redirects with message if none), displays expected output placeholder names as badges, provides prompt_text textarea with guidance on CSV column and manual input syntax, saves prompt on POST. Added URL `/sequences/project/<pk>/step/<step_pk>/template/<template_pk>/ai/` in `a_sequences/urls.py`. Created `a_sequences/templates/a_sequences/ai_prompt_configure.html` with expected outputs display and prompt textarea. Added "Configure AI" link in `template_list.html` partial shown only when template has AI-sourced placeholders. Migration applied, server runs cleanly.

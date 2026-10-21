@@ -1,0 +1,80 @@
+{% extends 'layouts/page.html' %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{% url 'a_sequences:template_configure' project.pk step.pk %}" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
+                ← Back to Templates
+            </a>
+            <h1>Configure AI for Template</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                {{ template.is_default|yesno:"Default Template,Condition Template #" }} 
+                {% if not template.is_default %}{{ template.get_conditions_ordered.count }} conditions{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-200 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Expected AI Output Placeholders</h2>
+        <p class="text-gray-600 mb-4">
+            The following placeholders in this template are <strong>AI-sourced</strong> 
+            (not matched to any CSV column). The AI prompt should generate values for each of these.
+        </p>
+        <div class="flex flex-wrap gap-2">
+            {% for placeholder in expected_outputs %}
+                <span class="px-3 py-1.5 bg-purple-50 text-purple-700 text-sm font-medium rounded-full border border-purple-200">
+                    {{ placeholder }}
+                </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <h2 class="text-lg font-semibold mb-4">AI Prompt Configuration</h2>
+        <p class="text-gray-600 mb-4">
+            Write a prompt that instructs the AI to generate values for the placeholders above. 
+            The prompt may reference CSV columns using <code class="px-1.5 py-0.5 bg-gray-100 rounded">{{ColumnName}}</code> 
+            and manual inputs using <code class="px-1.5 py-0.5 bg-gray-100 rounded">{{manual_field}}</code>.
+        </p>
+        <p class="text-gray-600 mb-4">
+            The app will automatically append formatting instructions telling the AI to wrap each output 
+            value in an XML-style tag matching the placeholder name (e.g., 
+            <code class="px-1.5 py-0.5 bg-gray-100 rounded"><placeholder_name>value</placeholder_name></code>).
+        </p>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div>
+                <label for="id_prompt_text" class="block text-sm font-medium text-gray-700 mb-2">
+                    Prompt Text
+                </label>
+                <textarea
+                    name="prompt_text"
+                    id="id_prompt_text"
+                    rows="12"
+                    class="w-full rounded-lg py-3 px-4 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-mono"
+                    placeholder="e.g., Write a personalized opening line for {{Name}} at {{Company}}. 
+Reference their recent post about {{recent_topic}} and mention how our solution helps with {{pain_point}}.
+ 
+Output the result in these exact tags:
+<opening_line>...</opening_line>
+<personalized_hook>...</personalized_hook>"
+                >{{ ai_config.prompt_text }}</textarea>
+                <p class="mt-1 text-sm text-gray-500">
+                    Use <code>{{CSV_Column}}</code> for CSV data, <code>{{manual_field}}</code> for one-off inputs. 
+                    The formatting instructions for tagged output are added automatically.
+                </p>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="submit" name="action" value="save_prompt" class="button">Save Prompt</button>
+                <a href="{% url 'a_sequences:template_configure' project.pk step.pk %}" class="button button-gray">Back to Templates</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

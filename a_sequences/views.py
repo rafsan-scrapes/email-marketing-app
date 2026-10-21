@@ -4,7 +4,7 @@ from django.db import models, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from a_projects.models import Project
-from a_sequences.models import SequenceStep, Template, TemplateCondition
+from a_sequences.models import SequenceStep, Template, TemplateCondition, AIPromptConfig
 from a_sequences.placeholders import extract_placeholders, classify_placeholders
 
 
@@ -276,3 +276,49 @@ def template_configure_view(request, project_pk, step_pk):
         template.placeholder_classification = classification
     
     return render(request, 'a_sequences/template_configure.html', context)
+
+
+@login_required
+def ai_prompt_configure_view(request, project_pk, step_pk, template_pk):
+    """AI prompt configuration view for a template."""
+    project = get_object_or_404(Project, pk=project_pk, owner=request.user)
+    step = get_object_or_404(SequenceStep, pk=step_pk, project=project)
+    template = get_object_or_404(Template, pk=template_pk, sequence_step=step)
+    csv_columns = project.csv_columns
+
+    # Get or create AI prompt config for this template
+    ai_config, _ = AIPromptConfig.objects.get_or_create(template=template)
+
+    # Get expected output placeholders (AI-sourced placeholders from template)
+    combined_text = ''
+    if template.subject:
+        combined_text += template.subject + '\n'
+    combined_text += template.body
+    
+    placeholders = extract_placeholders(combined_text)
+    classification = classify_placeholders(placeholders, csv_columns)
+    expected_outputs = classification['ai']
+
+    # Only show this view if there are AI-sourced placeholders
+    if not expected_outputs:
+        messages.info(request, 'This template has no AI-sourced placeholders to configure.')
+        return redirect('a_sequences:template_configure', project_pk=project.pk, step_pk=step.pk)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'save_prompt':
+            prompt_text = request.POST.get('prompt_text', '').strip()
+            ai_config.prompt_text = prompt_text
+            ai_config.save()
+            messages.success(request, 'AI prompt saved.')
+            return redirect('a_sequences:ai_prompt_configure', project_pk=project.pk, step_pk=step.pk, template_pk=template.pk)
+
+    context = {
+        'project': project,
+        'step': step,
+        'template': template,
+        'ai_config': ai_config,
+        'expected_outputs': expected_outputs,
+    }
+    return render(request, 'a_sequences/ai_prompt_configure.html', context)
