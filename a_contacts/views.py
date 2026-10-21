@@ -319,7 +319,14 @@ def prompt_override_htmx(request, project_pk, contact_pk, step_pk):
         prompt_obj.prompt_text = prompt_text
         prompt_obj.save()
         messages.success(request, 'Prompt updated.')
-        return HttpResponseRedirect(reverse('a_contacts:dashboard', args=[project.pk]) + f'?step={step.pk}')
+        # Return the updated partial so the modal stays open with the saved text
+        context = {
+            'project': project,
+            'contact': contact,
+            'step': step,
+            'prompt': prompt_obj,
+        }
+        return render(request, 'a_contacts/partials/prompt_override.html', context)
     
     context = {
         'project': project,

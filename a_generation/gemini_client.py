@@ -9,9 +9,10 @@ from a_projects.settings_utils import get_gemini_api_key
 
 logger = logging.getLogger(__name__)
 
-# Current free-tier model as of implementation
-GEMINI_MODEL = "gemini-1.5-flash"
-GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+# Primary and fallback free-tier model IDs (re-verify against ai.google.dev/pricing before each pass)
+GEMINI_MODEL_PRIMARY = "gemini-3.1-flash-lite"
+GEMINI_MODEL_FALLBACK = "gemini-2.5-flash-lite"
+GEMINI_ENDPOINT_PRIMARY = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL_PRIMARY}:generateContent"
 
 
 @dataclass
@@ -40,7 +41,8 @@ def call_gemini(prompt: str) -> GeminiResult:
             error_message="Gemini API key not configured. Please set it in Settings."
         )
     
-    url = f"{GEMINI_ENDPOINT}?key={api_key}"
+    url_primary = f"{GEMINI_ENDPOINT_PRIMARY}?key={api_key}"
+    url_fallback = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL_FALLBACK}:generateContent?key={api_key}"
     
     payload = {
         "contents": [
@@ -56,24 +58,37 @@ def call_gemini(prompt: str) -> GeminiResult:
         "Content-Type": "application/json"
     }
     
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-    except requests.exceptions.Timeout:
-        return GeminiResult(
-            success=False,
-            error_message="Request timed out. Please try again."
-        )
-    except requests.exceptions.ConnectionError:
-        return GeminiResult(
-            success=False,
-            error_message="Network error. Please check your connection and try again."
-        )
-    except requests.exceptions.RequestException as e:
-        logger.exception("Gemini request failed")
-        return GeminiResult(
-            success=False,
-            error_message=f"Request failed: {str(e)}"
-        )
+    def _post(url):
+        try:
+            return requests.post(url, json=payload, headers=headers, timeout=30)
+        except requests.exceptions.Timeout:
+            return None, "timeout"
+        except requests.exceptions.ConnectionError:
+            return None, "connection"
+        except requests.exceptions.RequestException as e:
+            logger.exception("Gemini request failed")
+            return None, f"request_failed:{e}"
+    
+    # First attempt with primary model
+    response, error_tag = _post(url_primary)
+    if error_tag:
+        if error_tag == "timeout":
+            return GeminiResult(success=False, error_message="Request timed out. Please try again.")
+        elif error_tag == "connection":
+            return GeminiResult(success=False, error_message="Network error. Please check your connection and try again.")
+        else:
+            return GeminiResult(success=False, error_message=f"Request failed: {error_tag}")
+    
+    # On rate limit (429), retry once with fallback model
+    if response.status_code == 429:
+        response, error_tag = _post(url_fallback)
+        if error_tag:
+            if error_tag == "timeout":
+                return GeminiResult(success=False, error_message="Request timed out. Please try again.")
+            elif error_tag == "connection":
+                return GeminiResult(success=False, error_message="Network error. Please check your connection and try again.")
+            else:
+                return GeminiResult(success=False, error_message=f"Request failed: {error_tag}")
     
     # Handle HTTP errors
     if response.status_code == 400:

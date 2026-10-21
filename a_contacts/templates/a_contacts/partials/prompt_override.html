@@ -13,7 +13,7 @@
             Leave blank to use the template's default prompt.
         </p>
 
-        <form method="post" class="space-y-4">
+        <form method="post" hx-post="{% url 'a_contacts:prompt_override_htmx' project.pk contact.pk step.pk %}" hx-target="#prompt-modal-container" hx-swap="innerHTML" class="space-y-4">
             {% csrf_token %}
             
             <div>
