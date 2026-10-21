@@ -9,11 +9,11 @@ explicitly told to.
 
 ## Current Phase
 
-- Phase 8 — Deletion & Cleanup
+- Phase 9 — Polish
 
 ## Current Goal
 
-- Unit 8.1 — Project delete flow with cascade.
+- Unit 9.1 — Polish views, empty states, loading states, error rendering.
 
 ## Completed
 
@@ -36,6 +36,7 @@ explicitly told to.
 - Unit 7.2 — GeneratedMessage model & "Generate Email/DM" view.
 - Unit 7.3 — Contact dashboard + per-contact prompt override.
 - Unit 7.4 — Bulk actions on the contact dashboard.
+- Unit 8.1 — Project delete flow with cascade.
 
 ## In Progress
 
@@ -43,7 +44,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 8.1 (see Phase & Unit Roadmap below)
+- Unit 9.1 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -458,3 +459,5 @@ is sized to be implemented in one focused session/prompt.
 - **Planning update (pre-7.3)**: Clarified and recorded the contact-dashboard feature (originally proposed loosely as "row-like UI with prompt/sequence/history columns"). Resolved into two units: 7.3 (ContactStepPrompt model + dashboard table + per-contact prompt override + Open/review view, single-contact scope) and 7.4 (bulk select + bulk Send Prompt/Generate Email/DM actions). Key resolved decisions, all recorded above in Architecture Decisions: prompt is scoped to (contact, step) and fully replaces the template's default prompt when set; no-prompt-and-no-default leaves placeholders ungenerated rather than erroring immediately (error surfaces at Generate Email/DM time instead); the per-row step selector idea was dropped in favor of one global step selector; "history" via Open means per-step messages shown together, not multiple versions (Invariant 6 unchanged); AI output values stay off the table, reachable via a per-row link into the existing Generate AI Fields page; bulk actions assume ~50–100 contacts and run synchronously, no task queue. `architecture.md` has not yet been updated to reflect the new `ContactStepPrompt` model / dashboard module boundary — do that alongside implementing 7.3.
 
 - **Unit 7.3 completed**: Created `ContactStepPrompt` model in `a_contacts/models.py` with contact FK, sequence_step FK, prompt_text, unique_together on contact+step. Built `dashboard_view` in `a_contacts/views.py` with step selector, AI fields status (success/error/partial/not_generated), message status, prompt override status, "Set Prompt" htmx link, "Generate AI Fields" link, "Generate Email/DM" link, "Open Messages" link. Added `prompt_override_htmx` view for htmx partial to edit prompt override. Created `dashboard.html` template with step selector, contacts table, AI status badges, prompt status badges, action links. Created `prompt_override.html` partial for htmx modal. Created `message_modal.html` partial for viewing all messages across steps. Added URL routes `/contacts/project/<pk>/dashboard/` and `/contacts/project/<pk>/contact/<pk>/step/<pk>/prompt/`. Added `is_csv` template filter in `a_contacts/templatetags/contacts_extras.py`. Updated `generate_ai_fields_view` in `a_generation/views.py` to use `ContactStepPrompt.prompt_text` when available, falling back to template's `AIPromptConfig`. Migration applied, server runs cleanly.
+
+- **Unit 8.1 completed**: Verified all FKs from Project use `on_delete=models.CASCADE` throughout the chain (SequenceStep, Template, TemplateCondition, AIPromptConfig, Contact, ContactStepPrompt, GeneratedAIField, GeneratedMessage) — no model changes needed. Enhanced `ProjectDeleteView` and `project_delete_confirm_htmx` view to compute and display counts of all related objects that will be cascade-deleted (steps, templates, conditions, AI configs, contacts, contact prompts, AI fields, messages). Updated `delete_confirm.html` template and `partials/delete_confirm.html` partial with an amber warning box listing each category and its count. Manually verified via Django shell: created a project with data in every related table, deleted it, and confirmed zero orphaned rows remain in any table.

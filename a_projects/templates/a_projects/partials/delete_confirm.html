@@ -8,16 +8,26 @@
     <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md z-10">
         <h2 class="text-xl font-semibold mb-4">Delete Project</h2>
 
-        <p class="text-gray-600 mb-6">
-            Are you sure you want to delete <strong>"{{ project.name }}"</strong>?
-            This action cannot be undone.
-        </p>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <h3 class="text-sm font-semibold text-amber-800 mb-2">This will delete <strong>"{{ project.name }}"</strong> and everything below:</h3>
+            <ul class="text-sm text-amber-700 space-y-1">
+                <li>• {{ steps_count }} sequence step{{ steps_count|pluralize }}</li>
+                <li>• {{ templates_count }} template{{ templates_count|pluralize }}</li>
+                <li>• {{ conditions_count }} template condition{{ conditions_count|pluralize }}</li>
+                <li>• {{ ai_configs_count }} AI prompt config{{ ai_configs_count|pluralize }}</li>
+                <li>• {{ contacts_count }} contact{{ contacts_count|pluralize }}</li>
+                <li>• {{ contact_prompts_count }} contact prompt override{{ contact_prompts_count|pluralize }}</li>
+                <li>• {{ ai_fields_count }} AI-generated field{{ ai_fields_count|pluralize }}</li>
+                <li>• {{ messages_count }} generated message{{ messages_count|pluralize }}</li>
+            </ul>
+            <p class="text-xs text-amber-600 mt-3">This action cannot be undone.</p>
+        </div>
 
         <form
             hx-delete="{% url 'a_projects:delete' project.pk %}"
             hx-target="#projects-list"
             hx-swap="outerHTML"
-            hx-confirm="Are you sure?"
+            hx-confirm="Are you sure? This cannot be undone."
             class="flex gap-3 justify-end"
         >
             <button
@@ -31,7 +41,7 @@
                 type="submit"
                 class="button button-red"
             >
-                Delete
+                Delete Project
             </button>
         </form>
     </div>

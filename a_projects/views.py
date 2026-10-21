@@ -5,7 +5,10 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView
 
+from a_contacts.models import Contact, ContactStepPrompt
+from a_generation.models import GeneratedAIField, GeneratedMessage
 from a_projects.models import Project, Settings
+from a_sequences.models import AIPromptConfig, SequenceStep, Template, TemplateCondition
 
 
 class ProjectListView(LoginRequiredMixin, ListView):
@@ -41,6 +44,21 @@ class ProjectDeleteView(LoginRequiredMixin, DeleteView):
     def get_success_url(self):
         return reverse_lazy('a_projects:list')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        project = self.object
+
+        context['steps_count'] = project.sequence_steps.count()
+        context['templates_count'] = Template.objects.filter(sequence_step__project=project).count()
+        context['conditions_count'] = TemplateCondition.objects.filter(template__sequence_step__project=project).count()
+        context['ai_configs_count'] = AIPromptConfig.objects.filter(template__sequence_step__project=project).count()
+        context['contacts_count'] = project.contacts.count()
+        context['contact_prompts_count'] = ContactStepPrompt.objects.filter(contact__project=project).count()
+        context['ai_fields_count'] = GeneratedAIField.objects.filter(contact__project=project).count()
+        context['messages_count'] = GeneratedMessage.objects.filter(contact__project=project).count()
+
+        return context
+
 
 class ProjectDetailView(LoginRequiredMixin, DetailView):
     model = Project
@@ -53,9 +71,45 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
 
 @login_required
 def project_delete_confirm_htmx(request, pk):
-    """HTMX partial for delete confirmation"""
+    """HTMX partial for delete confirmation - lists what will be removed."""
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    return render(request, 'a_projects/partials/delete_confirm.html', {'project': project})
+    
+    # Count related objects that will be cascade-deleted
+    steps_count = project.sequence_steps.count()
+    templates_count = 0
+    conditions_count = 0
+    ai_configs_count = 0
+    contacts_count = project.contacts.count()
+    contact_prompts_count = 0
+    ai_fields_count = 0
+    messages_count = 0
+    
+    if steps_count:
+        templates_count = Template.objects.filter(sequence_step__project=project).count()
+        conditions_count = TemplateCondition.objects.filter(template__sequence_step__project=project).count()
+        ai_configs_count = AIPromptConfig.objects.filter(template__sequence_step__project=project).count()
+    
+    if contacts_count:
+        contact_prompts_count = ContactStepPrompt.objects.filter(contact__project=project).count()
+        ai_fields_count = GeneratedAIField.objects.filter(contact__project=project).count()
+        messages_count = GeneratedMessage.objects.filter(contact__project=project).count()
+    
+    context = {
+        'project': project,
+        'steps_count': steps_count,
+        'templates_count': templates_count,
+        'conditions_count': conditions_count,
+        'ai_configs_count': ai_configs_count,
+        'contacts_count': contacts_count,
+        'contact_prompts_count': contact_prompts_count,
+        'ai_fields_count': ai_fields_count,
+        'messages_count': messages_count,
+        'total_related': (
+            steps_count + templates_count + conditions_count + ai_configs_count +
+            contacts_count + contact_prompts_count + ai_fields_count + messages_count
+        ),
+    }
+    return render(request, 'a_projects/partials/delete_confirm.html', context)
 
 
 @login_required
