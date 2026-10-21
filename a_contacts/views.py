@@ -1,3 +1,6 @@
+import csv
+from io import TextIOWrapper
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -174,7 +177,7 @@ def csv_headers_htmx(request, project_pk):
 
     csv_file = request.FILES.get('csv_file')
     if not csv_file:
-        return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': [], 'suggested_key': None})
+        return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': [], 'suggested_key': None, 'is_reupload': False})
 
     try:
         headers, _ = _parse_csv(csv_file)
@@ -182,7 +185,8 @@ def csv_headers_htmx(request, project_pk):
         headers = []
 
     suggested_key = _get_suggested_key(project, headers)
-    return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': headers, 'suggested_key': suggested_key})
+    is_reupload = bool(project.key_column)
+    return render(request, 'a_contacts/partials/key_column_dropdown.html', {'headers': headers, 'suggested_key': suggested_key, 'is_reupload': is_reupload})
 
 
 @login_required
