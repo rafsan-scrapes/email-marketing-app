@@ -5,7 +5,7 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, ListView
 
-from a_projects.models import Project
+from a_projects.models import Project, Settings
 
 
 class ProjectListView(LoginRequiredMixin, ListView):
@@ -65,3 +65,19 @@ def project_create_htmx(request):
             response['HX-Trigger'] = 'projectCreated'
             return response
     return render(request, 'a_projects/partials/create_form.html')
+
+
+@login_required
+def settings_view(request):
+    """Settings page - GET shows current key, POST updates it."""
+    settings_obj = Settings.get_settings()
+
+    if request.method == 'POST':
+        api_key = request.POST.get('gemini_api_key', '').strip()
+        settings_obj.gemini_api_key = api_key
+        settings_obj.save()
+        # Re-fetch to show updated value
+        settings_obj = Settings.get_settings()
+        # Could add a success message here
+
+    return render(request, 'a_projects/settings.html', {'settings': settings_obj})

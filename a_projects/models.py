@@ -26,3 +26,27 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Settings(models.Model):
+    """Single-row settings model for app-wide configuration (Gemini API key)."""
+    gemini_api_key = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Settings'
+        verbose_name_plural = 'Settings'
+
+    def __str__(self):
+        return 'Settings'
+
+    def save(self, *args, **kwargs):
+        # Enforce single row - always use pk=1
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create the single settings instance."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
