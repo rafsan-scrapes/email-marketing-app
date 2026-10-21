@@ -218,6 +218,10 @@ def dashboard_view(request, project_pk):
     else:
         selected_step = SequenceStep.objects.filter(project=project).order_by('order').first()
     
+    if not selected_step:
+        messages.warning(request, 'No sequence steps found for this project. Please create steps first.')
+        return redirect('a_projects:detail', pk=project.pk)
+    
     # Get all steps for the selector
     steps = SequenceStep.objects.filter(project=project).order_by('order')
     
