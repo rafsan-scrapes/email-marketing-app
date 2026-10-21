@@ -1,0 +1,133 @@
+{% extends 'layouts/page.html' %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{% url 'a_projects:detail' project.pk %}" class="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
+                ← Back to {{ project.name }}
+            </a>
+            <h1>Configure Sequence</h1>
+            <p class="text-sm text-gray-500 mt-1">Set up the sequence steps for this {{ project.get_type_display }} campaign.</p>
+        </div>
+    </div>
+
+    {% if not steps %}
+        <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+            <h2 class="text-lg font-semibold mb-4">No sequence steps yet</h2>
+            <p class="text-gray-600 mb-4">Create the initial steps for your sequence.</p>
+            <form method="post" class="flex gap-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_initial">
+                <div class="flex items-center gap-3">
+                    <label for="num_steps" class="text-sm font-medium text-gray-700">Number of steps:</label>
+                    <input
+                        type="number"
+                        name="num_steps"
+                        id="num_steps"
+                        min="1"
+                        max="20"
+                        value="3"
+                        class="w-24 rounded-lg py-3 px-4 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    >
+                </div>
+                <button type="submit" class="button">Create Steps</button>
+            </form>
+        </div>
+    {% else %}
+        <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Sequence Steps</h2>
+                <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_step">
+                    <button type="submit" class="button button-gray text-sm">Add Step</button>
+                </form>
+            </div>
+
+            <form method="post" id="steps-form" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_steps">
+
+                <div id="steps-container">
+                    {% include 'a_sequences/partials/step_list.html' with steps=steps %}
+                </div>
+
+                <div class="flex gap-3 pt-4 border-t border-gray-200">
+                    <button type="submit" class="button">Save Changes</button>
+                    <a href="{% url 'a_projects:detail' project.pk %}" class="button button-gray">Back to Project</a>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // Handle drag-and-drop reordering
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('steps-container');
+        if (!container) return;
+
+        let draggedItem = null;
+
+        container.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('step-row')) {
+                draggedItem = e.target;
+                e.target.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            }
+        });
+
+        container.addEventListener('dragend', function(e) {
+            if (e.target.classList.contains('step-row')) {
+                e.target.classList.remove('dragging');
+                draggedItem = null;
+            }
+        });
+
+        container.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(container, e.clientY);
+            const draggable = document.querySelector('.dragging');
+            if (draggable) {
+                if (afterElement == null) {
+                    container.appendChild(draggable);
+                } else {
+                    container.insertBefore(draggable, afterElement);
+                }
+            }
+        });
+
+        container.addEventListener('drop', function(e) {
+            e.preventDefault();
+            // Update order inputs after drop
+            updateOrderInputs();
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.step-row:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateOrderInputs() {
+            const rows = container.querySelectorAll('.step-row');
+            rows.forEach((row, index) => {
+                const orderInput = row.querySelector('input[name$="_order"]');
+                if (orderInput) {
+                    orderInput.value = index;
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock %}

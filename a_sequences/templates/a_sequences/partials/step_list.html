@@ -1,0 +1,53 @@
+{% for step in steps %}
+    <div class="step-row border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors" draggable="true" data-step-id="{{ step.pk }}">
+        <div class="flex items-center gap-4">
+            <div class="text-gray-400 cursor-grab px-2" title="Drag to reorder">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16M4 12h16"/>
+                </svg>
+            </div>
+
+            <div class="flex-1 min-w-0">
+                <input
+                    type="hidden"
+                    name="step_{{ step.pk }}_order"
+                    value="{{ step.order }}"
+                >
+                <input
+                    type="text"
+                    name="step_{{ step.pk }}_name"
+                    value="{{ step.name }}"
+                    class="w-full rounded-lg py-2 px-3 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium"
+                    placeholder="Step name"
+                >
+            </div>
+
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-500 whitespace-nowrap">Due offset (days):</label>
+                <input
+                    type="number"
+                    name="step_{{ step.pk }}_default_due_offset_days"
+                    value="{{ step.default_due_offset_days }}"
+                    min="0"
+                    max="365"
+                    class="w-20 rounded-lg py-2 px-3 bg-gray-50 border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm text-center"
+                >
+            </div>
+
+            <form method="post" class="inline" onclick="event.stopPropagation(); return confirm('Delete this step?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_step">
+                <input type="hidden" name="step_id" value="{{ step.pk }}">
+                <button type="submit" class="text-red-500 hover:text-red-700 p-1" title="Delete step">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+{% empty %}
+    <div class="text-center py-8 text-gray-500">
+        No steps yet. Click "Add Step" to create one.
+    </div>
+{% endfor %}
