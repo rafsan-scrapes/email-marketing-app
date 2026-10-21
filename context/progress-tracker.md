@@ -13,7 +13,7 @@ explicitly told to.
 
 ## Current Goal
 
-- Unit 7.1 — Template-resolution function & GeneratedMessage model.
+- Unit 7.2 — GeneratedMessage model & "Generate Email/DM" view.
 
 ## Completed
 
@@ -32,6 +32,7 @@ explicitly told to.
 - Unit 5.2 — Manual input detection & auto-formatting.
 - Unit 6.1 — Gemini API client wrapper.
 - Unit 6.2 — GeneratedAIField model & "Generate AI Fields" view.
+- Unit 7.1 — Template-resolution function.
 
 ## In Progress
 
@@ -39,7 +40,7 @@ explicitly told to.
 
 ## Next Up
 
-- Unit 7.1 (see Phase & Unit Roadmap below)
+- Unit 7.2 (see Phase & Unit Roadmap below)
 
 ## Open Questions
 
@@ -240,7 +241,7 @@ is sized to be implemented in one focused session/prompt.
 
 ### Phase 7 — Email/DM Generation & Review
 
-- [ ] **7.1** Template-resolution function: given a contact and a
+- [x] **7.1** Template-resolution function: given a contact and a
       sequence step, evaluate that step's condition templates in
       order and return the first full match, or the default template
       if none match. (Skip if already built in 6.2 — just confirm it
@@ -319,3 +320,5 @@ is sized to be implemented in one focused session/prompt.
 - **Unit 6.1 completed**: Created `a_generation/gemini_client.py` with `call_gemini(prompt)` function returning `GeminiResult` dataclass (success, raw_text, error_message). Fetches API key via `a_projects.settings_utils.get_gemini_api_key()`. Uses Gemini 1.5 Flash free-tier endpoint (`gemini-1.5-flash` via `generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`). Normalizes failures: missing/invalid key (401/400 with API key message), rate limit (429), quota/permission (403), server errors (5xx), timeout/connection errors, generic fallback. Returns `GeminiResult(success, raw_text, error_message)`. Tested: returns clear error when no API key configured.
 
 - **Unit 6.2 completed**: Created `GeneratedAIField` model in `a_generation/models.py` with contact FK, template FK, placeholder_name, value, status (success/error), error_message, generated_at. Created `a_generation/resolution.py` with shared template-resolution function `resolve_template_for_contact()` (evaluates condition templates in order, falls back to default), `parse_gemini_response()` for parsing XML-style tagged output, and helpers. Created `generate_ai_fields_view` in `a_generation/views.py` that: resolves template for contact/step, renders manual input fields from Unit 5.2, substitutes CSV/manual values into prompt, calls `build_gemini_prompt()` and `call_gemini()`, parses tagged response into per-placeholder `GeneratedAIField` rows (overwriting on retry), handles per-field retry via `retry_field` POST param. Added URL `/generation/project/<pk>/contact/<pk>/step/<pk>/ai-fields/`. Created template with manual input form, expected outputs display, existing fields table with per-field retry/regenerate buttons. Error isolation: Gemini failure for one contact/step saves error status on that row only, never blocks other contacts. Resolution function lives in `a_generation/resolution.py` for Phase 7 reuse.
+
+- **Unit 7.1 completed**: Confirmed template-resolution function `resolve_template_for_contact(contact, sequence_step)` already exists in `a_generation/resolution.py` and is imported by `a_generation/views.py` (Generate AI Fields view). Function evaluates condition templates in explicit priority order (ascending `order`), ANDs conditions within a template, returns first full match, falls back to default template (order=0). No duplication - single shared function in `a_generation/resolution.py` used by both Phase 6 and Phase 7.
