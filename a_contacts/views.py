@@ -11,10 +11,10 @@ from a_projects.models import Project
 from a_contacts.models import Contact, ContactStepPrompt
 from a_sequences.models import SequenceStep
 from a_generation.models import GeneratedAIField, GeneratedMessage
-from a_generation.resolution import resolve_template_for_contact, get_expected_output_placeholders, substitute_template_placeholders
+from a_generation.resolution import resolve_template_for_contact, get_expected_output_placeholders, substitute_template_placeholders, _build_prompt_with_substitutions
 from a_generation.gemini_client import call_gemini
 from a_sequences.ai_formatting import build_gemini_prompt
-from a_sequences.placeholders import extract_placeholders
+from a_sequences.placeholders import extract_placeholders, get_prompt_manual_inputs
 
 
 def _parse_csv(csv_file):
@@ -317,7 +317,7 @@ def prompt_override_htmx(request, project_pk, contact_pk, step_pk):
         prompt_obj.prompt_text = prompt_text
         prompt_obj.save()
         messages.success(request, 'Prompt updated.')
-        return redirect('a_contacts:dashboard', project_pk=project.pk)
+        return redirect('a_contacts:dashboard', project_pk=project.pk, step=step.pk)
     
     context = {
         'project': project,
@@ -360,13 +360,6 @@ def bulk_send_prompt_view(request, project_pk):
         # Resolve template for this contact/step
         template = resolve_template_for_contact(contact, selected_step)
         
-        # Check if template has AI prompt config
-        try:
-            ai_config = template.ai_prompt_config
-        except:
-            error_count += 1
-            continue
-        
         # Get expected outputs
         csv_columns = project.csv_columns
         expected_outputs = get_expected_output_placeholders(template, contact.project.csv_columns)
@@ -376,7 +369,7 @@ def bulk_send_prompt_view(request, project_pk):
             success_count += 1
             continue
         
-        # Check for contact-specific prompt override
+        # Check for contact-level prompt override
         base_prompt = None
         try:
             contact_prompt_obj = ContactStepPrompt.objects.get(
@@ -388,23 +381,30 @@ def bulk_send_prompt_view(request, project_pk):
         except ContactStepPrompt.DoesNotExist:
             pass
         
+        # Fall back to template AI config
+        ai_config = None
+        try:
+            ai_config = template.ai_prompt_config
+        except:
+            pass
+        
         if not base_prompt:
             base_prompt = ai_config.prompt_text if ai_config else ''
         
         if not base_prompt:
-            # No prompt available, skip
+            # No prompt available
             error_count += 1
             continue
         
-        # Get manual inputs
-        manual_inputs = ai_config.get_manual_inputs() if hasattr(ai_config, 'get_manual_inputs') else []
+        # Get manual inputs from base prompt
+        manual_inputs = get_prompt_manual_inputs(base_prompt, csv_columns) if base_prompt else []
         manual_values = {}
         
         # Build prompt with substitutions
-        prompt = _build_prompt_with_substitutions(base_prompt, contact, {})
+        prompt = _build_prompt_with_substitutions(base_prompt, contact, manual_values)
         
         # Apply auto-formatting
-        formatted_prompt = build_gemini_prompt('', expected_outputs)
+        formatted_prompt = build_gemini_prompt(prompt, expected_outputs)
         
         # Call Gemini
         result = call_gemini(formatted_prompt)
@@ -463,7 +463,7 @@ def bulk_send_prompt_view(request, project_pk):
     if error_count > 0:
         messages.error(request, f'Failed to generate AI fields for {error_count} contact(s).')
     
-    return redirect('a_contacts:dashboard', project_pk=project.pk)
+    return redirect('a_contacts:dashboard', project_pk=project.pk, step=step_pk)
 
 
 @login_required
@@ -487,7 +487,7 @@ def bulk_generate_email_dm_view(request, project_pk):
     contact_ids = request.POST.getlist('contact_ids')
     if not contact_ids:
         messages.error(request, 'No contacts selected.')
-        return redirect('a_contacts:dashboard', project_pk=project.pk)
+        return redirect('a_contacts:dashboard', project_pk=project.pk, step=step_pk)
     
     contacts = Contact.objects.filter(pk__in=contact_ids, project=project)
     
@@ -537,7 +537,7 @@ def bulk_generate_email_dm_view(request, project_pk):
     if error_count > 0:
         messages.error(request, f'Failed to generate Email/DM for {error_count} contact(s).')
     
-    return redirect('a_contacts:dashboard', project_pk=project.pk)
+    return redirect('a_contacts:dashboard', project_pk=project.pk, step=step_pk)
 
 
 @login_required

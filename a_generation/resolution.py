@@ -185,6 +185,40 @@ def parse_gemini_response(raw_text, expected_outputs):
     return results
 
 
+def _build_prompt_with_substitutions(prompt_text, contact, manual_values):
+    """
+    Substitute CSV columns and manual values into the prompt template.
+    
+    Args:
+        prompt_text: The raw prompt text with {{...}} placeholders
+        contact: Contact instance
+        manual_values: Dict of manual input field names -> values
+        
+    Returns:
+        Prompt text with all placeholders substituted
+    """
+    from a_sequences.placeholders import extract_placeholders
+    
+    result = prompt_text
+    
+    # First, substitute manual inputs (these take priority)
+    for field_name, value in manual_values.items():
+        result = result.replace(f'{{{{{field_name}}}}}', str(value))
+    
+    # Then substitute CSV columns from contact data
+    placeholders = extract_placeholders(prompt_text)
+    for placeholder in placeholders:
+        if placeholder in manual_values:
+            continue  # Already substituted
+        # Look up in contact data (case-insensitive)
+        for key, val in contact.data.items():
+            if key.lower() == placeholder.lower():
+                result = result.replace(f'{{{{{placeholder}}}}}', str(val))
+                break
+    
+    return result
+
+
 def substitute_template_placeholders(template, contact, csv_columns):
     """
     Substitute all placeholders in a template's subject and body.

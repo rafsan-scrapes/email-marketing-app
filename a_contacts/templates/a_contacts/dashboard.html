@@ -35,31 +35,23 @@
                 </label>
             </div>
             <div class="flex items-center gap-2">
-                <form method="post" action="{% url 'a_contacts:bulk_send_prompt' project.pk %}" class="inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="step" value="{{ selected_step.pk }}">
-                    <button type="submit" name="action" value="send_prompt" 
-                            class="button button-gray text-sm"
-                            onclick="return confirm('Send prompt to selected contacts? This will generate AI fields for selected contacts.')">
-                        Send Prompt
-                    </button>
-                </form>
-                <form method="post" action="{% url 'a_contacts:bulk_generate_email_dm' project.pk %}" class="inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="step" value="{{ selected_step.pk }}">
-                    <button type="submit" name="action" value="generate_email_dm"
-                            class="button text-sm"
-                            onclick="return confirm('Generate Email/DM for selected contacts? This will create messages using their AI fields.')">
-                        Generate Email/DM
-                    </button>
-                </form>
+                <button type="button" onclick="submitBulk('{% url 'a_contacts:bulk_send_prompt' project.pk %}')" 
+                        class="button button-gray text-sm"
+                        title="Send Prompt to selected contacts">
+                    Send Prompt
+                </button>
+                <button type="button" onclick="submitBulk('{% url 'a_contacts:bulk_generate_email_dm' project.pk %}')" 
+                        class="button text-sm"
+                        title="Generate Email/DM for selected contacts">
+                    Generate Email/DM
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Contacts Table -->
     {% if contacts_data %}
-        <form method="post" id="bulk-actions-form">
+        <form id="contacts-form">
             {% csrf_token %}
             <input type="hidden" name="step" value="{{ selected_step.pk }}">
             <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
@@ -131,17 +123,15 @@
                                 </td>
                                 
                                 <td class="px-4 py-3 text-sm">
-                                    {% with prompt=prompt %}
-                                        {% if prompt.prompt_text %}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                                                Custom prompt set
-                                            </span>
-                                        {% else %}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                                                Using default
-                                            </span>
-                                        {% endif %}
-                                    {% endwith %}
+                                    {% if cd.prompt.prompt_text %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                        Custom prompt set
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                        Using default
+                                    </span>
+                                    {% endif %}
                                 </td>
                                 
                                 <td class="px-4 py-3 text-sm">
@@ -203,6 +193,56 @@
 <div id="modal-container"></div>
 
 <script>
+    function submitBulk(url) {
+        var checked = document.querySelectorAll('.row-checkbox:checked');
+        if (checked.length === 0) {
+            alert('No contacts selected. Please check at least one contact.');
+            return false;
+        }
+        // Create a temporary form to submit checked contacts to the bulk URL
+        var form = document.createElement('form');
+        form.method = 'post';
+        form.action = url;
+        
+        // Add CSRF token
+        var csrf = document.querySelector('#contacts-form input[name="csrfmiddlewaretoken"]').value;
+        var csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrf;
+        form.appendChild(csrfInput);
+        
+        // Add step
+        var stepInput = document.createElement('input');
+        stepInput.type = 'hidden';
+        stepInput.name = 'step';
+        stepInput.value = document.querySelector('#contacts-form input[name="step"]').value;
+        form.appendChild(stepInput);
+        
+        // Add selected contact IDs
+        checked.forEach(function(cb) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'contact_ids';
+            input.value = cb.value;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        if (url.indexOf('bulk_send_prompt') > -1) {
+            if (!confirm('Send prompt to selected contacts? This will generate AI fields for selected contacts.')) {
+                document.body.removeChild(form);
+                return false;
+            }
+        } else if (url.indexOf('bulk_generate_email_dm') > -1) {
+            if (!confirm('Generate Email/DM for selected contacts? This will create messages using their AI fields.')) {
+                document.body.removeChild(form);
+                return false;
+            }
+        }
+        form.submit();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const selectAll = document.getElementById('select-all');
         const rowCheckboxes = document.querySelectorAll('.row-checkbox');

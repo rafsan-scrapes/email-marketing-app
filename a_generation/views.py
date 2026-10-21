@@ -15,6 +15,7 @@ from a_generation.resolution import (
     get_expected_output_placeholders,
     parse_gemini_response,
     substitute_template_placeholders,
+    _build_prompt_with_substitutions,
 )
 
 
@@ -32,13 +33,26 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
     # Resolve the appropriate template for this contact
     template = resolve_template_for_contact(contact, contact.project.sequence_steps.get(pk=step_pk))
     
-    # Check if template has AI prompt config
+    # Check for contact-level prompt override first, then template default
+    contact_prompt_obj = None
+    try:
+        contact_prompt_obj = ContactStepPrompt.objects.get(contact=contact, sequence_step=sequence_step)
+    except ContactStepPrompt.DoesNotExist:
+        pass
+
+    # Try template AI prompt config
+    ai_config = None
     try:
         ai_config = template.ai_prompt_config
     except AIPromptConfig.DoesNotExist:
-        messages.error(request, 'No AI prompt configured for the resolved template.')
-        return redirect('a_contacts:list', project_pk=contact.project_id)
-    
+        pass
+
+    base_prompt = ''
+    if contact_prompt_obj and contact_prompt_obj.prompt_text:
+        base_prompt = contact_prompt_obj.prompt_text
+    elif ai_config and ai_config.prompt_text:
+        base_prompt = ai_config.prompt_text
+
     # Get expected outputs (AI-sourced placeholders from template)
     csv_columns = contact.project.csv_columns
     expected_outputs = get_expected_output_placeholders(template, csv_columns)
@@ -47,20 +61,15 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
         messages.info(request, 'The resolved template has no AI-sourced placeholders to generate.')
         return redirect('a_contacts:list', project_pk=contact.project_id)
     
-    # Get manual input field names from prompt
-    manual_inputs = ai_config.get_manual_inputs() if hasattr(ai_config, 'get_manual_inputs') else []
+    if not base_prompt:
+        messages.error(request, 'No AI prompt available. Please set a prompt using "Set Prompt" in the dashboard, or configure the template AI.')
+        return redirect('a_contacts:dashboard', project_pk=contact.project_id)
     
-    # Check for contact-specific prompt override
-    contact_prompt = None
-    try:
-        contact_prompt_obj = ContactStepPrompt.objects.get(contact=contact, sequence_step=sequence_step)
-        if contact_prompt_obj.prompt_text:
-            contact_prompt = contact_prompt_obj.prompt_text
-    except ContactStepPrompt.DoesNotExist:
-        pass
+    # Get manual input field names from the resolved prompt text
+    manual_inputs = get_prompt_manual_inputs(base_prompt, csv_columns) if base_prompt else []
     
-    # Determine which prompt to use (contact override takes precedence)
-    base_prompt = contact_prompt if contact_prompt else ai_config.prompt_text
+    # Check for contact-specific prompt override (already resolved above)
+    # base_prompt already has the correct prompt (contact override or template default)
     
     # Get existing AI fields for this contact/template (for pre-filling on retry)
     existing_fields = {
@@ -83,7 +92,7 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
             # Collect manual input values from form
             manual_values = {
                 field: request.POST.get(field, '')
-                for field in ai_config.get_manual_inputs()
+                for field in manual_inputs
             }
         
         # Build the prompt with substitutions
@@ -154,7 +163,7 @@ def generate_ai_fields_view(request, project_pk, contact_pk, step_pk):
         return redirect('a_generation:generate_ai_fields', project_pk=project_pk, contact_pk=contact_pk, step_pk=step_pk)
     
     # GET request - show form
-    manual_input_fields = ai_config.get_manual_inputs() if hasattr(ai_config, 'get_manual_inputs') else []
+    manual_input_fields = manual_inputs
     
     context = {
         'contact': contact,
@@ -259,36 +268,3 @@ def generate_email_dm_view(request, project_pk, contact_pk, step_pk):
     }
     return render(request, 'a_generation/generate_email_dm.html', context)
 
-
-def _build_prompt_with_substitutions(prompt_text, contact, manual_values):
-    """
-    Substitute CSV columns and manual values into the prompt template.
-    
-    Args:
-        prompt_text: The raw prompt text with {{...}} placeholders
-        contact: Contact instance
-        manual_values: Dict of manual input field names -> values
-        
-    Returns:
-        Prompt text with all placeholders substituted
-    """
-    from a_sequences.placeholders import extract_placeholders
-    
-    result = prompt_text
-    
-    # First, substitute manual inputs (these take priority)
-    for field_name, value in manual_values.items():
-        result = result.replace(f'{{{{{field_name}}}}}', str(value))
-    
-    # Then substitute CSV columns from contact data
-    placeholders = extract_placeholders(prompt_text)
-    for placeholder in placeholders:
-        if placeholder in manual_values:
-            continue  # Already substituted
-        # Look up in contact data (case-insensitive)
-        for key, val in contact.data.items():
-            if key.lower() == placeholder.lower():
-                result = result.replace(f'{{{{{placeholder}}}}}', str(val))
-                break
-    
-    return result
